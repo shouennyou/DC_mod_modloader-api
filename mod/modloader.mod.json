@@ -3,8 +3,8 @@
   "name": "modloader-api",
   "author": "逍婉瑶",
   "description": "提供通用的modloader.api函数，用于更便捷的新增/修改游戏部分内容",
-  "version": "0.1.0",
-  "versionCode": 100,
+  "version": "0.1.1",
+  "versionCode": 110,
   "update": {
     "source": "github",
     "repo": "shouennyou/DC_mod_modloader-api"
@@ -32,7 +32,7 @@
     },
 	{
       "name": "模块-ks助手",
-      "path": "./modules/ks-script-module.js"
+      "path": "./modules/ks-script.js"
     },
 	{
       "name": "模块-角色配置助手",
