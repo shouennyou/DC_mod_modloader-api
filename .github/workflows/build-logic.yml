@@ -40,22 +40,11 @@ jobs:
           fi
           echo "构建成功：$ID.asar"
 
-      - name: Generate release notes
-        run: |
-          RELEASE_NOTES="$RUNNER_TEMP/release-notes.md"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
-            -f "tag_name=${{ inputs.tag_name }}" \
-            -f "target_commitish=$GITHUB_SHA" \
-            --jq '.body' > "$RELEASE_NOTES"
-          echo "RELEASE_NOTES=$RELEASE_NOTES" >> $GITHUB_ENV
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - name: Generate update.json
         run: |
           UPDATE_JSON="$RUNNER_TEMP/update.json"
           jq --arg asarUrl "https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/$ID.asar" \
-             --arg changelog "https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/release-notes.md" \
+             --arg changelog "https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag_name }}" \
              'del(.update, .injections) + {asarUrl: $asarUrl, changelog: $changelog}' \
              mod/modloader.mod.json > "$UPDATE_JSON"
           echo "UPDATE_JSON=$UPDATE_JSON" >> $GITHUB_ENV
@@ -65,10 +54,8 @@ jobs:
         with:
           tag_name: ${{ inputs.tag_name }}
           name: ${{ inputs.tag_name }}
-          body_path: ${{ env.RELEASE_NOTES }}
           files: |
             ${{ env.ID }}.asar
             ${{ env.UPDATE_JSON }}
-            ${{ env.RELEASE_NOTES }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
