@@ -1,7 +1,9 @@
 {
   "id": "modloader-api",
   "name": "modloader-api",
-  "author": "逍婉瑶",
+  "author": [
+    "逍婉瑶"
+  ],
   "description": "提供通用的modloader.api函数，用于更便捷的新增/修改游戏部分内容",
   "version": "0.1.1",
   "versionCode": 110,
