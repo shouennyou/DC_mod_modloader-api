@@ -57,9 +57,8 @@ modloader.api.chara.profile.register(...)
 modloader.api.chara.profile.show()
 
 modloader.api.chara.data.character.register(...)
-modloader.api.chara.data.character.show()
 modloader.api.chara.data.devil.register(...)
-modloader.api.chara.data.devil.show()
+modloader.api.chara.data.show()
 
 modloader.api.chara.setting.register(...)
 modloader.api.chara.setting.show()
