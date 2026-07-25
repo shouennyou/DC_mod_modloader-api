@@ -121,7 +121,9 @@
 		const runtime = modloader.ModuleRuntime.createRuntime(settings);
 		const api = helper.ensurePath(modloader.api, settings.apiPath);
 		api.register = api.register || {};
-		api.show = api.show || {};
+		api.show = function() {
+			return getSummary();
+		};
 		const state = {
 			jsonRules: [],
 			rawRules: [],
@@ -129,6 +131,15 @@
 			cachedRawScripts: {},
 			lastRequestedFile: '未知文件'
 		};
+		const debugConfigPath = 'config/modloader-api.json';
+		const captureRootPath = 'config/modloader-api';
+		const configPollInterval = 1000;
+		const defaultDebugSettings = {
+			captureKsJson: false,
+			captureKsRaw: false
+		};
+		const debugSettings = Object.assign({}, defaultDebugSettings);
+		let lastDebugConfigContent;
 
 		function normalizeTarget(target) {
 			if (!target) return '';
@@ -137,6 +148,85 @@
 
 		function cloneScriptData(data) {
 			return helper.cloneShallow(data);
+		}
+
+		function getConfigApi() {
+			const fileApi = window.api && window.api.modloader;
+			if (!fileApi || typeof fileApi.readFileSync !== 'function' || typeof fileApi.writeFileSync !== 'function') return null;
+			return fileApi;
+		}
+
+		function parseDebugSettings(content) {
+			const nextSettings = Object.assign({}, defaultDebugSettings);
+			if (content === null || content === undefined || content === '') return nextSettings;
+			const config = JSON.parse(content);
+			if (!config || typeof config !== 'object' || Array.isArray(config)) {
+				throw new Error('调试配置格式无效');
+			}
+			Object.keys(defaultDebugSettings).forEach(function(key) {
+				if (typeof config[key] === 'boolean') nextSettings[key] = config[key];
+			});
+			return nextSettings;
+		}
+
+		function refreshDebugSettings() {
+			const fileApi = getConfigApi();
+			if (!fileApi) return;
+			try {
+				const content = fileApi.readFileSync(debugConfigPath);
+				if (content === lastDebugConfigContent) return;
+				lastDebugConfigContent = content;
+				Object.assign(debugSettings, parseDebugSettings(content));
+			} catch (error) {
+				runtime.logError('读取调试配置失败', error);
+			}
+		}
+
+		function startDebugSettingsPolling() {
+			if (typeof window.setInterval !== 'function') return;
+			window.setInterval(refreshDebugSettings, configPollInterval);
+		}
+
+		function getCaptureFileName(fileName) {
+			const safeParts = String(fileName || 'unknown.ks')
+				.replace(/\\/g, '/')
+				.split('/')
+				.filter(function(part) { return part && part !== '.' && part !== '..'; })
+				.map(function(part) { return part.replace(/[<>:"|?*\u0000-\u001f]/g, '_'); });
+			let normalizedName = safeParts.length > 0 ? safeParts.join('/') : 'unknown.ks';
+			if (!/\.ks$/i.test(normalizedName)) normalizedName += '.ks';
+			return normalizedName;
+		}
+
+		function writeCaptureFile(type, fileName, extension, content) {
+			const fileApi = getConfigApi();
+			if (!fileApi) return;
+			const capturePath = `${captureRootPath}/${type}/${getCaptureFileName(fileName)}.${extension}`;
+			const result = fileApi.writeFileSync(capturePath, content);
+			if (!result || !result.success) {
+				throw new Error(result && result.error ? result.error : '调试文件写入失败');
+			}
+		}
+
+		function captureJsonScript(fileName, data) {
+			if (!debugSettings.captureKsJson) return;
+			try {
+				writeCaptureFile('json', fileName, 'json', JSON.stringify({
+					fileName: fileName,
+					data: data
+				}, null, 2));
+			} catch (error) {
+				runtime.logError(`导出 KS JSON 失败: ${fileName}`, error);
+			}
+		}
+
+		function captureRawScript(fileName, text) {
+			if (!debugSettings.captureKsRaw) return;
+			try {
+				writeCaptureFile('raw', fileName, 'raw', String(text == null ? '' : text));
+			} catch (error) {
+				runtime.logError(`导出 KS RAW 失败: ${fileName}`, error);
+			}
 		}
 
 		function getPreview(data) {
@@ -294,9 +384,8 @@
 			return getSummary();
 		};
 
-		api.show.summary = function() {
-			return getSummary();
-		};
+		refreshDebugSettings();
+		startDebugSettingsPolling();
 
 		runtime.initialize(function() {
 			try {
@@ -344,6 +433,7 @@
 					});
 
 					cacheScript(fileName, finalData);
+					captureJsonScript(fileName, finalData);
 					if (callback) callback(finalData);
 				};
 				return originalLoadScenario.apply(this, [fileName, wrappedCallback]);
@@ -373,6 +463,7 @@
 				});
 
 				cacheRawScript(fileName, originalText, finalText);
+				captureRawScript(fileName, finalText);
 				return originalParseScenario.apply(this, [finalText]);
 			};
 		});

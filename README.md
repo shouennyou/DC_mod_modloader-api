@@ -90,9 +90,9 @@ modloader.api.sysvar.show()
 modloader.api.ks.register.json(...)
 modloader.api.ks.register.raw(...)
 modloader.api.ks.list()
+modloader.api.ks.show()
 modloader.api.ks.show.json(...)
 modloader.api.ks.show.raw(...)
-modloader.api.ks.show.summary()
 ```
 
 ---
@@ -624,15 +624,24 @@ modloader.api.effect.show()
 modloader.api.ks.register.json(rules)
 modloader.api.ks.register.raw(rules)
 modloader.api.ks.list()
+modloader.api.ks.show()
 modloader.api.ks.show.json(fileName)
 modloader.api.ks.show.raw(fileName)
-modloader.api.ks.show.summary()
 ```
 
 - `ks.list()` 返回路径数组
+- `ks.show()` 返回 `{ paths, rawScripts, parsedScripts, rawRules, jsonRules }`
 - `ks.show.json(fileName)` 返回 `{ fileName, data }`
 - `ks.show.raw(fileName)` 返回 `{ fileName, originalText, transformedText }`
-- `ks.show.summary()` 返回 `{ paths, rawScripts, parsedScripts, rawRules, jsonRules }`
+
+### 5.12 KS 调试导出
+
+在 `modloader-api` 的配置中开启导出选项后, 已加载且完成规则处理的剧本会自动写入:
+
+- JSON: `config/modloader-api/json/xxx.ks.json`, 内容为 `{ fileName, data }`
+- RAW: `config/modloader-api/raw/xxx.ks.raw`, 内容为传入解析器前的最终 KS 文本
+
+配置每秒刷新一次, 开关保存后会作用于后续加载的剧本.
 
 ---
 

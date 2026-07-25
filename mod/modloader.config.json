@@ -1,0 +1,20 @@
+{
+  "title": "modloader-api 调试",
+  "description": "开启后, 自动导出已加载并完成规则处理的 KS 剧本. 同名文件会被最新结果覆盖.",
+  "fields": [
+    {
+      "key": "captureKsJson",
+      "type": "toggle",
+      "label": "导出 KS JSON",
+      "default": false,
+      "help": "导出到 config/modloader-api/json/xxx.ks.json."
+    },
+    {
+      "key": "captureKsRaw",
+      "type": "toggle",
+      "label": "导出 KS RAW",
+      "default": false,
+      "help": "导出到 config/modloader-api/raw/xxx.ks.raw."
+    }
+  ]
+}
