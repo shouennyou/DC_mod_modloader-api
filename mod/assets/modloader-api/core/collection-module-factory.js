@@ -4,7 +4,7 @@
 (function() {
 	'use strict';
 
-	const modloader = window.modloader || (window.modloader = {});
+	const modloader = window.modloaderApi || (window.modloaderApi = {});
 	if (modloader.CollectionModuleFactory) return;
 
 	const helper = modloader.ModHelper;
@@ -25,7 +25,7 @@
 		}, options || {});
 
 		const runtime = modloader.ModuleRuntime.createRuntime(settings);
-		const moduleApi = helper.ensurePath(modloader.api, settings.apiPath);
+		const moduleApi = helper.ensurePath(modloader, settings.apiPath);
 		const state = { collections: {} };
 
 		function ensureStateKey(key) {

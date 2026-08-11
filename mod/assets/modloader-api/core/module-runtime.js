@@ -4,7 +4,7 @@
 (function() {
 	'use strict';
 
-	const modloader = window.modloader || (window.modloader = {});
+	const modloader = window.modloaderApi || (window.modloaderApi = {});
 	if (modloader.ModuleRuntime) return;
 
 	function createRuntime(config) {

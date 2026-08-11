@@ -12,8 +12,10 @@
 ## 1. 使用前提
 
 1. Tyrano 运行时已就绪。
-2. 当前脚本能访问全局 `modloader`。
+2. 当前脚本能访问全局 `window.modloaderApi`。
 3. 注册类接口通常要求传入数组，即使只有一条数据也建议用数组包装。
+
+`window.modloaderApi` 是此模组提供的扩展 API. 它与宿主提供的文件接口 `window.modloader` 相互独立。
 
 很多字段支持动态函数，典型签名如下：
 
@@ -53,46 +55,46 @@ modules/system-variable-module.js
 ## 3. API 总览
 
 ```javascript
-modloader.api.chara.profile.register(...)
-modloader.api.chara.profile.show()
+window.modloaderApi.chara.profile.register(...)
+window.modloaderApi.chara.profile.show()
 
-modloader.api.chara.data.character.register(...)
-modloader.api.chara.data.devil.register(...)
-modloader.api.chara.data.show()
+window.modloaderApi.chara.data.character.register(...)
+window.modloaderApi.chara.data.devil.register(...)
+window.modloaderApi.chara.data.show()
 
-modloader.api.chara.setting.register(...)
-modloader.api.chara.setting.show()
+window.modloaderApi.chara.setting.register(...)
+window.modloaderApi.chara.setting.show()
 
-modloader.api.ending.register(...)
-modloader.api.ending.show()
+window.modloaderApi.ending.register(...)
+window.modloaderApi.ending.show()
 
-modloader.api.word.register(...)
-modloader.api.word.show()
+window.modloaderApi.word.register(...)
+window.modloaderApi.word.show()
 
-modloader.api.gallery.register(...)
-modloader.api.gallery.show()
+window.modloaderApi.gallery.register(...)
+window.modloaderApi.gallery.show()
 
-modloader.api.omake.register(...)
-modloader.api.omake.show()
+window.modloaderApi.omake.register(...)
+window.modloaderApi.omake.show()
 
-modloader.api.gekizyou.register(...)
-modloader.api.gekizyou.show()
+window.modloaderApi.gekizyou.register(...)
+window.modloaderApi.gekizyou.show()
 
-modloader.api.sticker.register(...)
-modloader.api.sticker.show()
+window.modloaderApi.sticker.register(...)
+window.modloaderApi.sticker.show()
 
-modloader.api.effect.register(...)
-modloader.api.effect.show()
+window.modloaderApi.effect.register(...)
+window.modloaderApi.effect.show()
 
-modloader.api.sysvar.register(...)
-modloader.api.sysvar.show()
+window.modloaderApi.sysvar.register(...)
+window.modloaderApi.sysvar.show()
 
-modloader.api.ks.register.json(...)
-modloader.api.ks.register.raw(...)
-modloader.api.ks.list()
-modloader.api.ks.show()
-modloader.api.ks.show.json(...)
-modloader.api.ks.show.raw(...)
+window.modloaderApi.ks.register.json(...)
+window.modloaderApi.ks.register.raw(...)
+window.modloaderApi.ks.list()
+window.modloaderApi.ks.show()
+window.modloaderApi.ks.show.json(...)
+window.modloaderApi.ks.show.raw(...)
 ```
 
 ---
@@ -129,82 +131,82 @@ modloader.api.ks.show.raw(...)
 
 ### 4.4 `register(...)` 字段速查
 
-#### `modloader.api.chara.profile.register(dataArray)`
+#### `window.modloaderApi.chara.profile.register(dataArray)`
 - 必填字段：`entry.data.name`
 - 常见可选字段：`entry.mode`、`entry.data.no`、`entry.data.description`、`entry.data.sex`、`entry.data.breed`、`entry.data.category`、`entry.data.alts`
 - 支持的 `mode`：`append`、`prepend`
 
-#### `modloader.api.chara.data.character.register(dataArray)`
+#### `window.modloaderApi.chara.data.character.register(dataArray)`
 - 必填字段：`entry.data.name`、`entry.data.folder`
 - 常见可选字段：`entry.mode`、`entry.target`、`entry.data.difficulty`、`entry.data.phrase`、`entry.data.cond`、`entry.data.scenario`、`entry.data.tutorial`
 - 支持的 `mode`：`append`、`prepend`、`override`
 - 说明：`entry.target` 常见值为 `notKilled` 或 `killed`；不传时按 `notKilled` 处理
 
-#### `modloader.api.chara.data.devil.register(dataArray)`
+#### `window.modloaderApi.chara.data.devil.register(dataArray)`
 - 必填字段：`entry.data.name`、`entry.data.folder`
 - 常见可选字段：`entry.mode`、`entry.data.difficulty`、`entry.data.phrase`、`entry.data.cond`、`entry.data.scenario`、`entry.data.tutorial`
 - 支持的 `mode`：`append`、`prepend`、`override`
 
-#### `modloader.api.chara.setting.register(dataArray)`
+#### `window.modloaderApi.chara.setting.register(dataArray)`
 - 必填字段：`entry.name`
 - 常见可选字段：`entry.audio`、`entry.font`
 - 支持的 `mode`：无
 - 说明：该模块不使用 `mode`
 
-#### `modloader.api.ending.register(dataArray)`
+#### `window.modloaderApi.ending.register(dataArray)`
 - 必填字段：`entry.data.title`
 - 常见可选字段：`entry.mode`、`entry.id`、`entry.data.category`、`entry.data.phrase`、`entry.data.timing`、`entry.data.cond`、`entry.data.hintCond`、`entry.data.bgType`
 - 支持的 `mode`：`append`、`fixed`
 - 说明：`fixed + id` 会写入指定 ID
 
-#### `modloader.api.word.register(dataArray)`
+#### `window.modloaderApi.word.register(dataArray)`
 - 必填字段：`entry.data`
 - 常见可选字段：`entry.type`、`entry.mode`
 - 支持的 `mode`：`append`、`prepend`、`replace`
 - 说明：`entry.type` 不传时默认写入 `ngWords`
 
-#### `modloader.api.gallery.register(dataArray)`
+#### `window.modloaderApi.gallery.register(dataArray)`
 - 必填字段：`entry.data.name`
 - 常见可选字段：`entry.mode`、`entry.data.title`、`entry.data.storages`
 - 支持的 `mode`：`append`、`prepend`、`override`
 
-#### `modloader.api.omake.register(dataArray)`
+#### `window.modloaderApi.omake.register(dataArray)`
 - 必填字段：`entry.data.name`
 - 常见可选字段：`entry.mode`、`entry.data.title`、`entry.data.cond`、`entry.data.storage`
 - 支持的 `mode`：`append`、`prepend`、`override`
 
-#### `modloader.api.gekizyou.register(dataArray)`
+#### `window.modloaderApi.gekizyou.register(dataArray)`
 - 必填字段：`entry.data`
 - 常见可选字段：`entry.mode`
 - 支持的 `mode`：`append`、`prepend`、`replace`
 - 说明：`entry.data` 通常是编号数组
 
-#### `modloader.api.sticker.register(dataArray)`
+#### `window.modloaderApi.sticker.register(dataArray)`
 - 必填字段：`entry.data.file`
 - 常见可选字段：`entry.mode`、`entry.data.name`、`entry.data.desc`
 - 支持的 `mode`：`append`、`prepend`、`override`
 
-#### `modloader.api.effect.register(dataArray)`
+#### `window.modloaderApi.effect.register(dataArray)`
 - 必填字段：`entry.data.file` 或 `entry.data.name` 至少一个
 - 常见可选字段：`entry.mode`、`entry.data.mode`
 - 支持的 `mode`：`append`、`prepend`、`override`
 
-#### `modloader.api.ks.register.json(rules)`
+#### `window.modloaderApi.ks.register.json(rules)`
 - 必填字段：`rule.target`、`rule.transform`
 - 常见可选字段：`rule.description`
 - 支持的 `mode`：无
 
-#### `modloader.api.ks.register.raw(rules)`
+#### `window.modloaderApi.ks.register.raw(rules)`
 - 必填字段：`rule.target`、`rule.transform`
 - 常见可选字段：`rule.description`
 - 支持的 `mode`：无
 
 ### 4.5 `register(...)` 最小合法示例
 
-#### `modloader.api.chara.profile.register(...)`
+#### `window.modloaderApi.chara.profile.register(...)`
 
 ```javascript
-modloader.api.chara.profile.register([
+window.modloaderApi.chara.profile.register([
   {
     data: {
       name: '示例角色'
@@ -213,10 +215,10 @@ modloader.api.chara.profile.register([
 ]);
 ```
 
-#### `modloader.api.chara.data.character.register(...)`
+#### `window.modloaderApi.chara.data.character.register(...)`
 
 ```javascript
-modloader.api.chara.data.character.register([
+window.modloaderApi.chara.data.character.register([
   {
     data: {
       name: '示例角色',
@@ -226,10 +228,10 @@ modloader.api.chara.data.character.register([
 ]);
 ```
 
-#### `modloader.api.chara.data.devil.register(...)`
+#### `window.modloaderApi.chara.data.devil.register(...)`
 
 ```javascript
-modloader.api.chara.data.devil.register([
+window.modloaderApi.chara.data.devil.register([
   {
     data: {
       name: '示例恶魔',
@@ -239,20 +241,20 @@ modloader.api.chara.data.devil.register([
 ]);
 ```
 
-#### `modloader.api.chara.setting.register(...)`
+#### `window.modloaderApi.chara.setting.register(...)`
 
 ```javascript
-modloader.api.chara.setting.register([
+window.modloaderApi.chara.setting.register([
   {
     name: '示例角色'
   }
 ]);
 ```
 
-#### `modloader.api.ending.register(...)`
+#### `window.modloaderApi.ending.register(...)`
 
 ```javascript
-modloader.api.ending.register([
+window.modloaderApi.ending.register([
   {
     data: {
       title: '示例结局'
@@ -261,20 +263,20 @@ modloader.api.ending.register([
 ]);
 ```
 
-#### `modloader.api.word.register(...)`
+#### `window.modloaderApi.word.register(...)`
 
 ```javascript
-modloader.api.word.register([
+window.modloaderApi.word.register([
   {
     data: ['示例词汇']
   }
 ]);
 ```
 
-#### `modloader.api.gallery.register(...)`
+#### `window.modloaderApi.gallery.register(...)`
 
 ```javascript
-modloader.api.gallery.register([
+window.modloaderApi.gallery.register([
   {
     data: {
       name: 'example_gallery'
@@ -283,10 +285,10 @@ modloader.api.gallery.register([
 ]);
 ```
 
-#### `modloader.api.omake.register(...)`
+#### `window.modloaderApi.omake.register(...)`
 
 ```javascript
-modloader.api.omake.register([
+window.modloaderApi.omake.register([
   {
     data: {
       name: 'example_omake'
@@ -295,20 +297,20 @@ modloader.api.omake.register([
 ]);
 ```
 
-#### `modloader.api.gekizyou.register(...)`
+#### `window.modloaderApi.gekizyou.register(...)`
 
 ```javascript
-modloader.api.gekizyou.register([
+window.modloaderApi.gekizyou.register([
   {
     data: [45]
   }
 ]);
 ```
 
-#### `modloader.api.sticker.register(...)`
+#### `window.modloaderApi.sticker.register(...)`
 
 ```javascript
-modloader.api.sticker.register([
+window.modloaderApi.sticker.register([
   {
     data: {
       file: '999'
@@ -317,10 +319,10 @@ modloader.api.sticker.register([
 ]);
 ```
 
-#### `modloader.api.effect.register(...)`
+#### `window.modloaderApi.effect.register(...)`
 
 ```javascript
-modloader.api.effect.register([
+window.modloaderApi.effect.register([
   {
     data: {
       file: 'example_effect'
@@ -329,10 +331,10 @@ modloader.api.effect.register([
 ]);
 ```
 
-#### `modloader.api.ks.register.json(...)`
+#### `window.modloaderApi.ks.register.json(...)`
 
 ```javascript
-modloader.api.ks.register.json([
+window.modloaderApi.ks.register.json([
   {
     target: 'scene/test.ks',
     transform: function(data) {
@@ -342,10 +344,10 @@ modloader.api.ks.register.json([
 ]);
 ```
 
-#### `modloader.api.ks.register.raw(...)`
+#### `window.modloaderApi.ks.register.raw(...)`
 
 ```javascript
-modloader.api.ks.register.raw([
+window.modloaderApi.ks.register.raw([
   {
     target: 'scene/test.ks',
     transform: function(text) {
@@ -364,7 +366,7 @@ modloader.api.ks.register.raw([
 #### 角色资料：追加一个新角色简介
 
 ```javascript
-modloader.api.chara.profile.register([
+window.modloaderApi.chara.profile.register([
   {
     mode: 'append',
     data: {
@@ -384,7 +386,7 @@ modloader.api.chara.profile.register([
 #### 角色数据：在普通路线追加新角色
 
 ```javascript
-modloader.api.chara.data.character.register([
+window.modloaderApi.chara.data.character.register([
   {
     mode: 'append',
     target: 'notKilled',
@@ -403,7 +405,7 @@ modloader.api.chara.data.character.register([
 #### 系统变量：永久写入一个 Mod 开关
 
 ```javascript
-modloader.api.sysvar.register([
+window.modloaderApi.sysvar.register([
   {
     key: 'mod.example.enabled',
     value: true,
@@ -415,7 +417,7 @@ modloader.api.sysvar.register([
 #### 系统变量：临时切换到 kill 路线
 
 ```javascript
-modloader.api.sysvar.register([
+window.modloaderApi.sysvar.register([
   {
     key: 'kill',
     value: 1,
@@ -427,7 +429,7 @@ modloader.api.sysvar.register([
 #### KS 原文规则：直接替换脚本文本
 
 ```javascript
-modloader.api.ks.register.raw([
+window.modloaderApi.ks.register.raw([
   {
     target: 'scene/main.ks',
     description: '把某句原版文本替换为 Mod 文本',
@@ -440,11 +442,11 @@ modloader.api.ks.register.raw([
 
 ## 5. 分模块文档
 
-### 5.1 `modloader.api.chara.profile`
+### 5.1 `window.modloaderApi.chara.profile`
 
 ```javascript
-modloader.api.chara.profile.register(dataArray)
-modloader.api.chara.profile.show()
+window.modloaderApi.chara.profile.register(dataArray)
+window.modloaderApi.chara.profile.show()
 ```
 
 `show()` 返回角色资料原始数组：
@@ -461,12 +463,12 @@ modloader.api.chara.profile.show()
 ]
 ```
 
-### 5.2 `modloader.api.chara.data`
+### 5.2 `window.modloaderApi.chara.data`
 
 ```javascript
-modloader.api.chara.data.character.register(dataArray)
-modloader.api.chara.data.devil.register(dataArray)
-modloader.api.chara.data.show()
+window.modloaderApi.chara.data.character.register(dataArray)
+window.modloaderApi.chara.data.devil.register(dataArray)
+window.modloaderApi.chara.data.show()
 ```
 
 `show()` 精确返回值：
@@ -479,11 +481,11 @@ modloader.api.chara.data.show()
 }
 ```
 
-### 5.3 `modloader.api.chara.setting`
+### 5.3 `window.modloaderApi.chara.setting`
 
 ```javascript
-modloader.api.chara.setting.register(dataArray)
-modloader.api.chara.setting.show()
+window.modloaderApi.chara.setting.register(dataArray)
+window.modloaderApi.chara.setting.show()
 ```
 
 `show()` 精确返回值：
@@ -496,11 +498,11 @@ modloader.api.chara.setting.show()
 }
 ```
 
-### 5.4 `modloader.api.ending`
+### 5.4 `window.modloaderApi.ending`
 
 ```javascript
-modloader.api.ending.register(dataArray)
-modloader.api.ending.show()
+window.modloaderApi.ending.register(dataArray)
+window.modloaderApi.ending.show()
 ```
 
 `show()` 返回结局原始对象：
@@ -512,11 +514,11 @@ modloader.api.ending.show()
 }
 ```
 
-### 5.5 `modloader.api.word`
+### 5.5 `window.modloaderApi.word`
 
 ```javascript
-modloader.api.word.register(dataArray)
-modloader.api.word.show()
+window.modloaderApi.word.register(dataArray)
+window.modloaderApi.word.show()
 ```
 
 `show()` 精确返回值：
@@ -528,11 +530,11 @@ modloader.api.word.show()
 }
 ```
 
-### 5.6 `modloader.api.gallery`
+### 5.6 `window.modloaderApi.gallery`
 
 ```javascript
-modloader.api.gallery.register(dataArray)
-modloader.api.gallery.show()
+window.modloaderApi.gallery.register(dataArray)
+window.modloaderApi.gallery.show()
 ```
 
 `show()` 返回画廊原始数组：
@@ -547,11 +549,11 @@ modloader.api.gallery.show()
 ]
 ```
 
-### 5.7 `modloader.api.omake`
+### 5.7 `window.modloaderApi.omake`
 
 ```javascript
-modloader.api.omake.register(dataArray)
-modloader.api.omake.show()
+window.modloaderApi.omake.register(dataArray)
+window.modloaderApi.omake.show()
 ```
 
 `show()` 返回番外原始数组：
@@ -567,11 +569,11 @@ modloader.api.omake.show()
 ]
 ```
 
-### 5.8 `modloader.api.gekizyou`
+### 5.8 `window.modloaderApi.gekizyou`
 
 ```javascript
-modloader.api.gekizyou.register(dataArray)
-modloader.api.gekizyou.show()
+window.modloaderApi.gekizyou.register(dataArray)
+window.modloaderApi.gekizyou.show()
 ```
 
 `show()` 精确返回值：
@@ -580,11 +582,11 @@ modloader.api.gekizyou.show()
 [45, 46, 47]
 ```
 
-### 5.9 `modloader.api.sticker`
+### 5.9 `window.modloaderApi.sticker`
 
 ```javascript
-modloader.api.sticker.register(dataArray)
-modloader.api.sticker.show()
+window.modloaderApi.sticker.register(dataArray)
+window.modloaderApi.sticker.show()
 ```
 
 `show()` 返回贴纸原始数组：
@@ -599,11 +601,11 @@ modloader.api.sticker.show()
 ]
 ```
 
-### 5.10 `modloader.api.effect`
+### 5.10 `window.modloaderApi.effect`
 
 ```javascript
-modloader.api.effect.register(dataArray)
-modloader.api.effect.show()
+window.modloaderApi.effect.register(dataArray)
+window.modloaderApi.effect.show()
 ```
 
 `show()` 返回特效原始数组：
@@ -618,15 +620,15 @@ modloader.api.effect.show()
 ]
 ```
 
-### 5.11 `modloader.api.ks`
+### 5.11 `window.modloaderApi.ks`
 
 ```javascript
-modloader.api.ks.register.json(rules)
-modloader.api.ks.register.raw(rules)
-modloader.api.ks.list()
-modloader.api.ks.show()
-modloader.api.ks.show.json(fileName)
-modloader.api.ks.show.raw(fileName)
+window.modloaderApi.ks.register.json(rules)
+window.modloaderApi.ks.register.raw(rules)
+window.modloaderApi.ks.list()
+window.modloaderApi.ks.show()
+window.modloaderApi.ks.show.json(fileName)
+window.modloaderApi.ks.show.raw(fileName)
 ```
 
 - `ks.list()` 返回路径数组
@@ -648,8 +650,8 @@ modloader.api.ks.show.raw(fileName)
 ## 6. 调试面板 API
 
 ```javascript
-modloader.api.panel.registerPage(config)
-modloader.api.panel.open(id)
+window.modloaderApi.panel.registerPage(config)
+window.modloaderApi.panel.open(id)
 ```
 
 推荐由 `loader()` 把原始数据转成展示协议：

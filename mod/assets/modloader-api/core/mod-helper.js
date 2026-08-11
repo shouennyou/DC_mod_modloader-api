@@ -4,8 +4,7 @@
 (function() {
 	'use strict';
 
-	const modloader = window.modloader || (window.modloader = {});
-	const api = modloader.api || (modloader.api = {});
+	const modloader = window.modloaderApi || (window.modloaderApi = {});
 
 	function ensurePath(root, path) {
 		return path.split('.').reduce((current, key) => {
@@ -27,7 +26,7 @@
 		'sticker',
 		'script',
 		'sysvar'
-	].forEach(path => ensurePath(api, path));
+	].forEach(path => ensurePath(modloader, path));
 
 	if (modloader.ModHelper) return;
 

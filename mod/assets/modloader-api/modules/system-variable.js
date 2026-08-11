@@ -6,6 +6,8 @@
 (function() {
 	'use strict';
 
+	const modloader = window.modloaderApi;
+
 	const helper = modloader.ModHelper;
 	const runtime = modloader.ModuleRuntime.createRuntime({
 		tag: '系统变量助手',
@@ -281,7 +283,7 @@
 		return true;
 	}
 
-	var moduleApi = helper.ensurePath(modloader.api, 'sysvar');
+	var moduleApi = helper.ensurePath(modloader, 'sysvar');
 
 	moduleApi.register = function(list) {
 		if (!Array.isArray(list)) {

@@ -4,7 +4,7 @@
 (function() {
 	'use strict';
 
-	const modloader = window.modloader || (window.modloader = {});
+	const modloader = window.modloaderApi || (window.modloaderApi = {});
 	if (modloader.SpecialModuleFactory) return;
 
 	const helper = modloader.ModHelper;
@@ -78,7 +78,7 @@
 		}
 
 		function registerTargetApi(target) {
-			const targetApi = helper.ensurePath(modloader.api, target.apiPath);
+			const targetApi = helper.ensurePath(modloader, target.apiPath);
 			targetApi.register = function(list) {
 				if (!Array.isArray(list)) return null;
 				const registered = [];
@@ -99,9 +99,9 @@
 		runtime.initialize(function() { return true; }, function() {
 			settings.targets.forEach(registerTargetApi);
 			applySmartHook();
-			helper.ensurePath(modloader.api, settings.apiPathRoot || '');
+			helper.ensurePath(modloader, settings.apiPathRoot || '');
 			if (settings.showApiPath) {
-				const showApi = helper.ensurePath(modloader.api, settings.showApiPath);
+				const showApi = helper.ensurePath(modloader, settings.showApiPath);
 				showApi.show = function() { return settings.show(state, runtime); };
 			}
 		});
@@ -119,7 +119,7 @@
 		}, options || {});
 
 		const runtime = modloader.ModuleRuntime.createRuntime(settings);
-		const api = helper.ensurePath(modloader.api, settings.apiPath);
+		const api = helper.ensurePath(modloader, settings.apiPath);
 		api.register = api.register || {};
 		api.show = function() {
 			return getSummary();
@@ -151,7 +151,7 @@
 		}
 
 		function getConfigApi() {
-			const fileApi = window.api && window.api.modloader;
+			const fileApi = window.modloader;
 			if (!fileApi || typeof fileApi.readFileSync !== 'function' || typeof fileApi.writeFileSync !== 'function') return null;
 			return fileApi;
 		}

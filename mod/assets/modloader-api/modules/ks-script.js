@@ -4,6 +4,8 @@
 (function() {
 	'use strict';
 
+	const modloader = window.modloaderApi;
+
 	modloader.SpecialModuleFactory.createScenarioModule({
 		tag: 'KS助手',
 		color: '#795548',

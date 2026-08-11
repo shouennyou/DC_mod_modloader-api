@@ -1,15 +1,17 @@
 /**
  * 使用说明.
  * 1. 注册方法:
- * modloader.api.chara.setting.register([
+ * window.modloaderApi.chara.setting.register([
  * { name: "角色名", audio: "音频文件名.ogg", font: "字体名称" }
  * ]);
  * 2. 查看当前配置:
- * modloader.api.chara.setting.show();
+ * window.modloaderApi.chara.setting.show();
  */
 
 (function() {
 	'use strict';
+
+	const modloader = window.modloaderApi;
 
 	var CONFIG = {
 		retryInterval: 3000,
@@ -54,7 +56,7 @@
 		if (state.isLoaded) return;
 
 		try {
-			modloader.api.chara.setting.register = function(charaList) {
+			modloader.chara.setting.register = function(charaList) {
 				if (!Array.isArray(charaList)) return null;
 
 				if (!checkReady()) {
@@ -97,7 +99,7 @@
 				return registeredList.length > 0 ? registeredList : null;
 			};
 
-			modloader.api.chara.setting.show = function() {
+			modloader.chara.setting.show = function() {
 				try {
 					if (!checkReady()) {
 						console.error(`${logTag} %c统计显示失败:%c 引擎未就绪`, tagStyle, resetStyle, errorStyle, resetStyle);

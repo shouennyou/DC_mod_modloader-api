@@ -4,6 +4,8 @@
 (function() {
 	'use strict';
 
+	const modloader = window.modloaderApi;
+
 	const helper = modloader.ModHelper;
 	const factory = modloader.SpecialModuleFactory;
 

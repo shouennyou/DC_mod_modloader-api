@@ -4,6 +4,8 @@
 (function() {
 	'use strict';
 
+	const modloader = window.modloaderApi;
+
 	const factory = modloader.DataModuleFactory;
 
 	factory.createArrayHookModule({
