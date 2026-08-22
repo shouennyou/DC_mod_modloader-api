@@ -5,82 +5,12 @@
     "逍婉瑶"
   ],
   "description": "提供通用的 window.modloaderApi 函数, 用于更便捷地新增或修改游戏内容",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "update": {
     "source": "github",
     "repo": "shouennyou/DC_mod_modloader-api"
   },
   "depends": {
-    "devilconnection-modloader": ">=1.7.0"
-  },
-  "injections": [
-    {
-      "name": "核心-帮助",
-      "path": "./assets/modloader-api/core/mod-helper.js"
-    },
-	{
-      "name": "核心-运行时",
-      "path": "./assets/modloader-api/core/module-runtime.js"
-    },
-	{
-      "name": "核心-通用数据模块",
-      "path": "./assets/modloader-api/core/data-module-factory.js"
-    },
-	{
-      "name": "核心-通用集合处理",
-      "path": "./assets/modloader-api/core/collection-module-factory.js"
-    },
-	{
-      "name": "核心-特殊拦截模块",
-      "path": "./assets/modloader-api/core/special-module-factory.js"
-    },
-	{
-      "name": "模块-ks助手",
-      "path": "./assets/modloader-api/modules/ks-script.js"
-    },
-	{
-      "name": "模块-角色配置助手",
-      "path": "./assets/modloader-api/modules/character-setting.js"
-    },
-	{
-      "name": "模块-角色数据助手",
-      "path": "./assets/modloader-api/modules/character-data.js"
-    },
-	{
-      "name": "模块-角色助手",
-      "path": "./assets/modloader-api/modules/character-profile.js"
-    },
-	{
-      "name": "模块-结局助手",
-      "path": "./assets/modloader-api/modules/ending.js"
-    },
-	{
-      "name": "模块-词汇助手",
-      "path": "./assets/modloader-api/modules/word.js"
-    },
-	{
-      "name": "模块-画廊助手",
-      "path": "./assets/modloader-api/modules/gallery.js"
-    },
-	{
-      "name": "模块-番外助手",
-      "path": "./assets/modloader-api/modules/omake.js"
-    },
-	{
-      "name": "模块-剧场助手",
-      "path": "./assets/modloader-api/modules/theater.js"
-    },
-	{
-      "name": "模块-贴纸助手",
-      "path": "./assets/modloader-api/modules/sticker.js"
-    },
-	{
-      "name": "模块-特效助手",
-      "path": "./assets/modloader-api/modules/effect.js"
-    },
-	{
-      "name": "模块-系统变量助手",
-      "path": "./assets/modloader-api/modules/system-variable.js"
-    }
-  ]
+    "devilconnection-modloader": ">=1.7.1"
+  }
 }

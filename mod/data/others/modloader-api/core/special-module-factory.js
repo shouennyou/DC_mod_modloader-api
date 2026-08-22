@@ -129,7 +129,8 @@
 			rawRules: [],
 			cachedScripts: {},
 			cachedRawScripts: {},
-			lastRequestedFile: '未知文件'
+			lastRequestedFile: '未知文件',
+			rawLoadContext: null
 		};
 		const debugConfigPath = 'config/modloader-api.json';
 		const captureRootPath = 'config/modloader-api';
@@ -141,9 +142,31 @@
 		const debugSettings = Object.assign({}, defaultDebugSettings);
 		let lastDebugConfigContent;
 
+		function checkScenarioReady() {
+			try {
+				return (
+					typeof tyrano !== 'undefined' &&
+					tyrano.plugin &&
+					tyrano.plugin.kag &&
+					typeof tyrano.plugin.kag.loadScenario === 'function' &&
+					tyrano.plugin.kag.parser &&
+					typeof tyrano.plugin.kag.parser.parseScenario === 'function' &&
+					typeof $ !== 'undefined' &&
+					typeof $.loadText === 'function'
+				);
+			} catch (error) {
+				return false;
+			}
+		}
+
 		function normalizeTarget(target) {
 			if (!target) return '';
-			return String(target).replace(/\\/g, '/').toLowerCase();
+			let normalized = String(target).replace(/\\/g, '/').toLowerCase();
+			normalized = normalized.split('?')[0].split('#')[0].replace(/^\.\//, '');
+			const scenarioMarker = 'data/scenario/';
+			const markerIndex = normalized.indexOf(scenarioMarker);
+			if (markerIndex !== -1) normalized = normalized.substring(markerIndex + scenarioMarker.length);
+			return normalized;
 		}
 
 		function cloneScriptData(data) {
@@ -272,6 +295,38 @@
 			return normalizeTarget(ruleTarget) !== '' && normalizeTarget(ruleTarget) === normalizeTarget(fileName);
 		}
 
+		function applyRawRules(text, fileName, context) {
+			let finalText = String(text == null ? '' : text);
+			state.rawRules.filter(function(rule) {
+				return matchTarget(rule.target, fileName);
+			}).forEach(function(rule) {
+				try {
+					const nextText = rule.transform(finalText, Object.assign({
+						fileName: fileName,
+						rule: rule,
+						stage: 'raw'
+					}, context || {}));
+					if (typeof nextText === 'string') finalText = nextText;
+				} catch (error) {
+					runtime.logError(`KS规则执行异常: ${rule.description || rule.target}`, error);
+				}
+			});
+			return finalText;
+		}
+
+		function invalidateRawCache(target) {
+			try {
+				if (typeof tyrano === 'undefined' || !tyrano.plugin || !tyrano.plugin.kag) return;
+				const cache = tyrano.plugin.kag.cache_scenario;
+				if (!cache || typeof cache !== 'object') return;
+				Object.keys(cache).forEach(function(filePath) {
+					if (matchTarget(target, filePath)) delete cache[filePath];
+				});
+			} catch (error) {
+				runtime.logError('清除 KS 缓存失败', error);
+			}
+		}
+
 		function getParsedDetails(fileName) {
 			const cached = state.cachedScripts[normalizeTarget(fileName)];
 			if (!cached) return null;
@@ -359,6 +414,7 @@
 				try {
 					if (!rule || !rule.target || typeof rule.transform !== 'function') return;
 					state.rawRules.push(rule);
+					invalidateRawCache(rule.target);
 					registered.push(rule);
 					if (settings.debug) runtime.logRegisterSuccess(rule.description || rule.target, [`目标文件(KS): [${rule.target}]`]);
 				} catch (error) {
@@ -387,23 +443,11 @@
 		refreshDebugSettings();
 		startDebugSettingsPolling();
 
-		runtime.initialize(function() {
-			try {
-				return (
-					typeof tyrano !== 'undefined' &&
-					tyrano.plugin &&
-					tyrano.plugin.kag &&
-					typeof tyrano.plugin.kag.loadScenario === 'function' &&
-					tyrano.plugin.kag.parser &&
-					typeof tyrano.plugin.kag.parser.parseScenario === 'function'
-				);
-			} catch (error) {
-				return false;
-			}
-		}, function() {
+		function installScenarioHooks() {
 			const kag = tyrano.plugin.kag;
 			const originalLoadScenario = kag.loadScenario;
 			const originalParseScenario = kag.parser.parseScenario;
+			const originalLoadText = typeof $ !== 'undefined' && typeof $.loadText === 'function' ? $.loadText : null;
 
 			kag.loadScenario = function(fileName, callback) {
 				state.lastRequestedFile = fileName || state.lastRequestedFile;
@@ -440,33 +484,49 @@
 			};
 
 			kag.parser.parseScenario = function(textStr) {
-				const fileName = kag.stat.current_scenario || state.lastRequestedFile || '未知文件';
-				let finalText = String(textStr == null ? '' : textStr);
-				const originalText = finalText;
-				const matchedRules = state.rawRules.filter(function(rule) {
-					return matchTarget(rule.target, fileName);
-				});
+				const context = state.rawLoadContext;
+				const fileName = context ? context.fileName : (kag.stat.current_scenario || state.lastRequestedFile || '未知文件');
+				const originalText = String(textStr == null ? '' : textStr);
+				const finalText = context && originalText === context.transformedText
+					? originalText
+					: applyRawRules(originalText, fileName, { kag: kag, parser: kag.parser, stage: 'raw' });
+				if (!context || originalText !== context.transformedText) {
+					cacheRawScript(fileName, originalText, finalText);
+					captureRawScript(fileName, finalText);
+				}
+				return originalParseScenario.apply(this, [finalText]);
+			};
 
-				matchedRules.forEach(function(rule) {
-					try {
-						const nextText = rule.transform(finalText, {
-							fileName: fileName,
-							rule: rule,
+			if (originalLoadText) {
+				$.loadText = function(filePath, callback) {
+					const fileName = normalizeTarget(filePath);
+					return originalLoadText.call(this, filePath, function(text) {
+						const originalText = String(text == null ? '' : text);
+						const transformedText = applyRawRules(originalText, fileName, {
 							kag: kag,
 							parser: kag.parser,
 							stage: 'raw'
 						});
-						if (typeof nextText === 'string') finalText = nextText;
-					} catch (error) {
-						runtime.logError(`KS规则执行异常: ${rule.description || rule.target}`, error);
-					}
-				});
+						cacheRawScript(fileName, originalText, transformedText);
+						captureRawScript(fileName, transformedText);
+						const previousContext = state.rawLoadContext;
+						state.rawLoadContext = { fileName: fileName, transformedText: transformedText };
+						try {
+							if (callback) callback(transformedText);
+						} finally {
+							state.rawLoadContext = previousContext;
+						}
+					});
+				};
+			}
+		}
 
-				cacheRawScript(fileName, originalText, finalText);
-				captureRawScript(fileName, finalText);
-				return originalParseScenario.apply(this, [finalText]);
-			};
-		});
+		api.ensureHook = function() {
+			runtime.initialize(checkScenarioReady, installScenarioHooks);
+			return runtime.state.isLoaded;
+		};
+
+		api.ensureHook();
 
 		return { runtime: runtime, state: state, api: api };
 	}

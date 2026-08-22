@@ -9,6 +9,80 @@
 
 	const helper = modloader.ModHelper;
 
+	// Keep one dc descriptor per kag instance so multiple data modules can coexist.
+	function watchDc(kag, listener, onError) {
+		const key = '__modloaderApiDcWatcher';
+		let watcher = kag[key];
+		if (!watcher) {
+			const descriptor = Object.getOwnPropertyDescriptor(kag, 'dc');
+			let current = descriptor && Object.prototype.hasOwnProperty.call(descriptor, 'value')
+				? descriptor.value
+				: (descriptor && typeof descriptor.get === 'function' ? descriptor.get.call(kag) : kag.dc);
+			watcher = {
+				listeners: [],
+				notify: function() {
+					this.listeners.slice().forEach(function(item) {
+						try { item.listener(current); } catch (error) {
+							if (typeof item.onError === 'function') item.onError(error);
+						}
+					});
+				}
+			};
+			try {
+				Object.defineProperty(kag, 'dc', {
+					configurable: true,
+					enumerable: descriptor ? descriptor.enumerable : true,
+					get: function() {
+						return descriptor && typeof descriptor.get === 'function' ? descriptor.get.call(kag) : current;
+					},
+					set: function(nextDc) {
+						if (descriptor && typeof descriptor.set === 'function') descriptor.set.call(kag, nextDc);
+						else current = nextDc;
+						current = descriptor && typeof descriptor.get === 'function' ? descriptor.get.call(kag) : nextDc;
+						watcher.notify();
+					}
+				});
+				Object.defineProperty(kag, key, { value: watcher, configurable: false, enumerable: false });
+			} catch (error) {
+				if (typeof onError === 'function') onError(error);
+				return false;
+			}
+		}
+		if (!watcher.listeners.some(function(item) { return item.listener === listener; })) {
+			watcher.listeners.push({ listener: listener, onError: onError });
+		}
+		listener(kag.dc);
+		return true;
+	}
+
+	function watchKag(listener, onError) {
+		const key = '__modloaderApiKagWatcher';
+		let watcher = modloader[key];
+		if (!watcher) {
+			watcher = { listeners: [], current: null, timer: null };
+			modloader[key] = watcher;
+			const refresh = function() {
+				const nextKag = typeof TYRANO !== 'undefined' && TYRANO ? TYRANO.kag : null;
+				if (!nextKag || nextKag === watcher.current) return;
+				watcher.current = nextKag;
+				watcher.listeners.slice().forEach(function(item) {
+					if (!watchDc(nextKag, item.listener, item.onError)) item.listener(nextKag.dc);
+				});
+			};
+			if (typeof window.setInterval === 'function') watcher.timer = window.setInterval(refresh, 500);
+		}
+		const item = { listener: listener, onError: onError };
+		if (!watcher.listeners.some(function(existing) { return existing.listener === listener; })) {
+			watcher.listeners.push(item);
+		}
+		const nextKag = typeof TYRANO !== 'undefined' && TYRANO ? TYRANO.kag : null;
+		if (nextKag) {
+			watcher.current = nextKag;
+			return watchDc(nextKag, listener, onError);
+		}
+		return false;
+	}
+
 	function createArrayHookModule(options) {
 		const settings = Object.assign({
 			retryInterval: 3000,
@@ -42,9 +116,10 @@
 
 		function applyHook() {
 			const originalFn = settings.getSource();
+			if (typeof originalFn !== 'function' || originalFn.__modloaderApiDataHook) return;
 			settings.setSource(function() {
 				let data = originalFn.apply(this, arguments);
-				if (!Array.isArray(data)) data = [];
+				data = Array.isArray(data) ? data.slice() : [];
 
 				getStore().forEach(entry => {
 					try {
@@ -60,6 +135,22 @@
 
 				return data;
 			});
+			const hooked = settings.getSource();
+			if (typeof hooked === 'function') hooked.__modloaderApiDataHook = true;
+		}
+
+		function applySmartHook() {
+			if (typeof TYRANO === 'undefined' || !TYRANO.kag) {
+				helper.waitUntilReady(function() {
+					return typeof TYRANO !== 'undefined' && TYRANO.kag;
+				}, settings.retryInterval, applySmartHook);
+				return;
+			}
+			if (!watchKag(function() {
+				if (settings.checkReady()) applyHook();
+			}, function(error) {
+				runtime.logError('DC 替换保护安装失败', error);
+			})) applyHook();
 		}
 
 		function registerEntries(list) {
@@ -93,7 +184,7 @@
 		}
 
 		runtime.initialize(settings.checkReady, function() {
-			applyHook();
+			applySmartHook();
 			moduleApi.register = registerEntries;
 			moduleApi.show = showData;
 		});
@@ -121,6 +212,7 @@
 
 		function applyHook() {
 			const originalFn = settings.getSource();
+			if (typeof originalFn !== 'function' || originalFn.__modloaderApiDataHook) return;
 			settings.setSource(function() {
 				const baseData = originalFn.apply(this, arguments);
 				const data = settings.cloneSource(baseData);
@@ -133,6 +225,22 @@
 				});
 				return data;
 			});
+			const hooked = settings.getSource();
+			if (typeof hooked === 'function') hooked.__modloaderApiDataHook = true;
+		}
+
+		function applySmartHook() {
+			if (typeof TYRANO === 'undefined' || !TYRANO.kag) {
+				helper.waitUntilReady(function() {
+					return typeof TYRANO !== 'undefined' && TYRANO.kag;
+				}, settings.retryInterval, applySmartHook);
+				return;
+			}
+			if (!watchKag(function() {
+				if (settings.checkReady()) applyHook();
+			}, function(error) {
+				runtime.logError('DC 替换保护安装失败', error);
+			})) applyHook();
 		}
 
 		function registerEntries(list) {
@@ -165,7 +273,7 @@
 		}
 
 		runtime.initialize(settings.checkReady, function() {
-			applyHook();
+			applySmartHook();
 			moduleApi.register = registerEntries;
 			moduleApi.show = showData;
 		});
