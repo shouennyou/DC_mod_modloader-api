@@ -58,21 +58,27 @@ modules/language.js
 
 ```javascript
 window.modloaderApi.chara.profile.register(...)
+window.modloaderApi.chara.profile.patch.register(...)
 window.modloaderApi.chara.profile.show()
 
 window.modloaderApi.chara.category.register(...)
+window.modloaderApi.chara.category.patch.register(...)
 window.modloaderApi.chara.category.show()
 
 window.modloaderApi.chara.data.character.register(...)
+window.modloaderApi.chara.data.character.patch.register(...)
 window.modloaderApi.chara.data.devil.register(...)
+window.modloaderApi.chara.data.devil.patch.register(...)
 window.modloaderApi.chara.data.show()
 
 window.modloaderApi.chara.setting.register(...)
 window.modloaderApi.chara.setting.show()
 
 window.modloaderApi.ending.register(...)
+window.modloaderApi.ending.patch.register(...)
 window.modloaderApi.ending.show()
 window.modloaderApi.ending.category.register(...)
+window.modloaderApi.ending.category.patch.register(...)
 window.modloaderApi.ending.category.show()
 
 window.modloaderApi.word.register(...)
@@ -82,18 +88,25 @@ window.modloaderApi.lang.register(...)
 window.modloaderApi.lang.show()
 
 window.modloaderApi.gallery.register(...)
+window.modloaderApi.gallery.patch.register(...)
 window.modloaderApi.gallery.show()
 
 window.modloaderApi.omake.register(...)
+window.modloaderApi.omake.patch.register(...)
 window.modloaderApi.omake.show()
+window.modloaderApi.omake.ex.register(...)
+window.modloaderApi.omake.ex.patch.register(...)
+window.modloaderApi.omake.ex.show()
 
 window.modloaderApi.gekizyou.register(...)
 window.modloaderApi.gekizyou.show()
 
 window.modloaderApi.sticker.register(...)
+window.modloaderApi.sticker.patch.register(...)
 window.modloaderApi.sticker.show()
 
 window.modloaderApi.effect.register(...)
+window.modloaderApi.effect.patch.register(...)
 window.modloaderApi.effect.show()
 
 window.modloaderApi.sysvar.register(...)
@@ -158,7 +171,12 @@ window.modloaderApi.registration.complete('my-mod-id', false, error)
 #### `window.modloaderApi.chara.profile.register(dataArray)`
 - 必填字段：`entry.data.name`
 - 常见可选字段：`entry.mode`、`entry.data.no`、`entry.data.description`、`entry.data.sex`、`entry.data.breed`、`entry.data.category`、`entry.data.alts`
-- 支持的 `mode`：`append`、`prepend`
+- 支持的 `mode`：`append`、`prepend`、`override`
+- 说明：`override` 按 `entry.data.name` 完整替换原有角色资料；不存在同名角色时追加到末尾。
+
+#### `window.modloaderApi.chara.profile.patch.register(dataArray)`
+- 必填字段：`entry.data.name`
+- 说明：仅合并提供的角色资料字段，不改变原角色顺序；只有设定 `appendIfMissing: true` 时才会追加新角色。
 
 #### `window.modloaderApi.chara.category.register(dataArray)`
 - 必填字段：`entry.data.name`
@@ -166,16 +184,31 @@ window.modloaderApi.registration.complete('my-mod-id', false, error)
 - 支持的 `mode`：`append`、`prepend`、`override`
 - 说明：`visibility: 'always'` 为默认值, 分类会立即显示并纳入未全解锁统计; `visibility: 'allCharasOpen'` 仅在 `allCharasOpenInCollection()` 为真时显示和统计
 
+#### `window.modloaderApi.chara.category.patch.register(dataArray)`
+- 必填字段：`entry.data.name`
+- 常见可选字段：`entry.appendIfMissing`、`entry.data.text`
+- 说明：仅覆盖同名分类中提供的显示字段；默认不会新增分类。
+
 #### `window.modloaderApi.chara.data.character.register(dataArray)`
 - 必填字段：`entry.data.name`、`entry.data.folder`
 - 常见可选字段：`entry.mode`、`entry.target`、`entry.data.difficulty`、`entry.data.phrase`、`entry.data.cond`、`entry.data.scenario`、`entry.data.tutorial`
 - 支持的 `mode`：`append`、`prepend`、`override`
 - 说明：`entry.target` 常见值为 `notKilled` 或 `killed`；不传时按 `notKilled` 处理
 
+#### `window.modloaderApi.chara.data.character.patch.register(dataArray)`
+- 必填字段：`entry.data.name`、`entry.data.folder`
+- 常见可选字段：`entry.appendIfMissing`、`entry.target`、角色数据的任意字段
+- 说明：以 `folder` 为标识合并已有普通角色；默认不新增项目。
+
 #### `window.modloaderApi.chara.data.devil.register(dataArray)`
 - 必填字段：`entry.data.name`、`entry.data.folder`
 - 常见可选字段：`entry.mode`、`entry.data.difficulty`、`entry.data.phrase`、`entry.data.cond`、`entry.data.scenario`、`entry.data.tutorial`
 - 支持的 `mode`：`append`、`prepend`、`override`
+
+#### `window.modloaderApi.chara.data.devil.patch.register(dataArray)`
+- 必填字段：`entry.data.name`、`entry.data.folder`
+- 常见可选字段：`entry.appendIfMissing`、恶魔数据的任意字段
+- 说明：以 `folder` 为标识合并已有恶魔；默认不新增项目。
 
 #### `window.modloaderApi.chara.setting.register(dataArray)`
 - 必填字段：`entry.name`
@@ -184,10 +217,19 @@ window.modloaderApi.registration.complete('my-mod-id', false, error)
 - 说明：该模块不使用 `mode`
 
 #### `window.modloaderApi.ending.register(dataArray)`
-- 必填字段：`entry.data.title`
+- 必填字段：`entry.data.title`；也可传入返回结局对象的 `entry.data` 函数
 - 常见可选字段：`entry.mode`、`entry.id`、`entry.data.category`、`entry.data.phrase`、`entry.data.timing`、`entry.data.cond`、`entry.data.hintCond`、`entry.data.bgType`
 - 支持的 `mode`：`append`、`fixed`
-- 说明：`fixed + id` 会写入指定 ID
+- 说明：`fixed + id` 会完整替换指定 ID。函数形式的 `data` 会在每次读取结局时计算，适用于依赖 `f`、`sf` 或图鉴方法的动态文本。
+
+#### `window.modloaderApi.ending.patch.register(dataArray)`
+- 必填字段：`entry.id`、`entry.data`
+- 说明：仅合并指定结局 ID 的提供字段；不存在该 ID 时默认忽略，设定 `appendIfMissing: true` 才创建该 ID。
+
+#### `window.modloaderApi.ending.category.patch.register(dataArray)`
+- 必填字段：`entry.data.name`
+- 常见可选字段：`entry.appendIfMissing`、`entry.data.text`
+- 说明：仅合并同名结局分类的提供字段，保持原分类顺序；默认不会新增分类。
 
 #### `window.modloaderApi.word.register(dataArray)`
 - 必填字段：`entry.data`
@@ -205,11 +247,35 @@ window.modloaderApi.registration.complete('my-mod-id', false, error)
 - 必填字段：`entry.data.name`
 - 常见可选字段：`entry.mode`、`entry.data.title`、`entry.data.storages`
 - 支持的 `mode`：`append`、`prepend`、`override`
+- 说明：`override` 按 `entry.data.name` 完整替换同名项。
+
+#### `window.modloaderApi.gallery.patch.register(dataArray)`
+- 必填字段：`entry.data.name`
+- 常见可选字段：`entry.appendIfMissing`、`entry.data.title`、`entry.data.storages`
+- 说明：仅合并同名画廊的提供字段并保留原顺序；分页读取时会自动识别原项目，避免错误追加到当前页或末尾。
 
 #### `window.modloaderApi.omake.register(dataArray)`
 - 必填字段：`entry.data.name`
 - 常见可选字段：`entry.mode`、`entry.data.title`、`entry.data.cond`、`entry.data.storage`
 - 支持的 `mode`：`append`、`prepend`、`override`
+- 说明：`override` 按 `entry.data.name` 完整替换同名项。
+
+#### `window.modloaderApi.omake.patch.register(dataArray)`
+- 必填字段：`entry.data.name`
+- 常见可选字段：`entry.appendIfMissing`、`entry.data.title`、`entry.data.cond`、`entry.data.storage`
+- 说明：仅合并同名番外的提供字段并保留原顺序；分页读取时会自动识别原项目，避免错误追加到当前页或末尾。
+
+#### `window.modloaderApi.omake.ex.register(dataArray)`
+- 对应新版游戏的 `TYRANO.kag.dc.additionalNgSceneData()`；旧版游戏没有该函数时不会安装钩子。
+- 必填字段：`entry.data.name`
+- 常见可选字段：`entry.mode`、`entry.data.title`、`entry.data.cond`、`entry.data.storage`
+- 支持的 `mode`：`append`、`prepend`、`override`
+- 说明：`override` 按 `entry.data.name` 完整替换同名扩展番外。
+
+#### `window.modloaderApi.omake.ex.patch.register(dataArray)`
+- 必填字段：`entry.data.name`
+- 常见可选字段：`entry.appendIfMissing`、`entry.data.title`、`entry.data.cond`、`entry.data.storage`
+- 说明：仅合并同名扩展番外的提供字段，保持原顺序；未命中时默认不追加。
 
 #### `window.modloaderApi.gekizyou.register(dataArray)`
 - 必填字段：`entry.data`
@@ -222,10 +288,22 @@ window.modloaderApi.registration.complete('my-mod-id', false, error)
 - 常见可选字段：`entry.mode`、`entry.data.name`、`entry.data.desc`
 - 支持的 `mode`：`append`、`prepend`、`override`
 
+#### `window.modloaderApi.sticker.patch.register(dataArray)`
+- 必填字段：`entry.data.file`
+- 常见可选字段：`entry.appendIfMissing`、`entry.data.name`、`entry.data.desc`
+- 说明：以 `file` 为标识合并已有贴纸，保持原顺序。
+
 #### `window.modloaderApi.effect.register(dataArray)`
 - 必填字段：`entry.data.file` 或 `entry.data.name` 至少一个
 - 常见可选字段：`entry.mode`、`entry.data.mode`
 - 支持的 `mode`：`append`、`prepend`、`override`
+
+#### `window.modloaderApi.effect.patch.register(dataArray)`
+- 必填字段：`entry.data.file` 或 `entry.data.name` 至少一个
+- 常见可选字段：`entry.appendIfMissing`、特效数据的任意字段
+- 说明：优先以 `file`、其次以 `name` 为标识合并已有特效，保持原顺序。
+
+> `chara.setting` 是立即执行的角色音频/字体命令；`word`、`gekizyou` 是无字段可合并的标量集合；`lang.register({ mode: 'override' })` 已是递归局部覆盖；`sysvar.register(...)` 本身就是按路径写入补丁。因此这些接口不另设 `patch.register`，以避免重复且含义不清的 API。
 
 #### `window.modloaderApi.ks.register.json(rules)`
 - 必填字段：`rule.target`、`rule.transform`
@@ -519,6 +597,7 @@ window.modloaderApi.ks.register.raw([
 
 ```javascript
 window.modloaderApi.chara.profile.register(dataArray)
+window.modloaderApi.chara.profile.patch.register(dataArray)
 window.modloaderApi.chara.profile.show()
 ```
 
@@ -540,6 +619,7 @@ window.modloaderApi.chara.profile.show()
 
 ```javascript
 window.modloaderApi.chara.category.register(dataArray)
+window.modloaderApi.chara.category.patch.register(dataArray)
 window.modloaderApi.chara.category.show()
 ```
 
@@ -551,7 +631,9 @@ window.modloaderApi.chara.category.show()
 
 ```javascript
 window.modloaderApi.chara.data.character.register(dataArray)
+window.modloaderApi.chara.data.character.patch.register(dataArray)
 window.modloaderApi.chara.data.devil.register(dataArray)
+window.modloaderApi.chara.data.devil.patch.register(dataArray)
 window.modloaderApi.chara.data.show()
 ```
 
@@ -586,6 +668,7 @@ window.modloaderApi.chara.setting.show()
 
 ```javascript
 window.modloaderApi.ending.register(dataArray)
+window.modloaderApi.ending.patch.register(dataArray)
 window.modloaderApi.ending.show()
 ```
 
@@ -603,6 +686,7 @@ window.modloaderApi.ending.show()
 也可以使用函数动态返回文本. `visibility` 默认为 `always`, 与 `normal` 的显示方式一致.
 设为 `secret` 或 `locked` 后, 会复用游戏的 `secretEndOpenInCollection()` 解锁条件.
 支持的模式为 `append`, `prepend` 和 `override`.
+`ending.category.patch.register(...)` 则只合并同名类别的已提供字段，且默认不追加新类别。
 
 ```javascript
 window.modloaderApi.ending.category.register([
@@ -646,6 +730,7 @@ window.modloaderApi.lang.show()
 
 ```javascript
 window.modloaderApi.gallery.register(dataArray)
+window.modloaderApi.gallery.patch.register(dataArray)
 window.modloaderApi.gallery.show()
 ```
 
@@ -665,6 +750,7 @@ window.modloaderApi.gallery.show()
 
 ```javascript
 window.modloaderApi.omake.register(dataArray)
+window.modloaderApi.omake.patch.register(dataArray)
 window.modloaderApi.omake.show()
 ```
 
@@ -680,6 +766,31 @@ window.modloaderApi.omake.show()
   }
 ]
 ```
+
+#### `window.modloaderApi.omake.ex`
+
+新版游戏将额外番外定义在 `additionalNgSceneData()`，主 `ngSceneData()` 会将其结果合并到番外列表。该接口只操作这部分附加数据：
+
+```javascript
+window.modloaderApi.omake.ex.register([
+  {
+    data: {
+      name: 'extra_scene',
+      title: '扩展番外',
+      cond: '通关后解锁',
+      storage: 'omake_extra_scene'
+    }
+  }
+])
+
+window.modloaderApi.omake.ex.patch.register([
+  {
+    data: { name: 'extra_scene', title: '修改后的标题' }
+  }
+])
+```
+
+`show()` 返回 `additionalNgSceneData()` 的原始数组。
 
 ### 5.9 `window.modloaderApi.gekizyou`
 
@@ -698,6 +809,7 @@ window.modloaderApi.gekizyou.show()
 
 ```javascript
 window.modloaderApi.sticker.register(dataArray)
+window.modloaderApi.sticker.patch.register(dataArray)
 window.modloaderApi.sticker.show()
 ```
 
@@ -717,6 +829,7 @@ window.modloaderApi.sticker.show()
 
 ```javascript
 window.modloaderApi.effect.register(dataArray)
+window.modloaderApi.effect.patch.register(dataArray)
 window.modloaderApi.effect.show()
 ```
 

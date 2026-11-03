@@ -14,7 +14,8 @@
 		color: '#2196f3',
 		apiPath: 'chara.profile',
 		stateKey: 'entries',
-		allowedModes: ['append', 'prepend'],
+		enablePatch: true,
+		allowedModes: ['append', 'prepend', 'override'],
 		defaultMode: 'append',
 		checkReady: function() {
 			try {
@@ -35,8 +36,11 @@
 		getEntryName: function(entry) {
 			return entry && entry.data && entry.data.name ? entry.data.name : '未知角色';
 		},
-		matcher: function() {
-			return false;
+		matcher: function(target, finalItem) {
+			return !!(target && finalItem && target.name === finalItem.name);
+		},
+		mergePatch: function(target, finalItem) {
+			return Object.assign({}, target, finalItem);
 		},
 		logRegister: function(runtime, entry) {
 			const data = entry.data;

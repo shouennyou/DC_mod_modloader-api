@@ -12,7 +12,7 @@
 		retryInterval: 100
 	});
 	const api = helper.ensurePath(modloader, 'chara.category');
-	const state = { entries: [] };
+	const state = { entries: [], patchEntries: [] };
 	const hookKey = '__modloaderApiCharaCategoryHook';
 
 	function getDc() {
@@ -70,6 +70,19 @@
 			if (index !== -1 && mode === 'override') categories[index] = category;
 			else if (index === -1 && mode === 'prepend') categories.unshift(category);
 			else if (index === -1) categories.push(category);
+		});
+
+		state.patchEntries.forEach(function(entry) {
+			const index = categories.findIndex(function(item) {
+				return item && item.name === entry.data.name;
+			});
+			if (index !== -1) {
+				const patch = {};
+				if (entry.data.text !== undefined) patch.text = getCategoryText(entry, thisArg);
+				categories[index] = Object.assign({}, categories[index], patch);
+			} else if (entry.appendIfMissing === true && isVisible(entry, allCharasOpen)) {
+				categories.push({ name: entry.data.name, text: getCategoryText(entry, thisArg) });
+			}
 		});
 		return categories;
 	}
@@ -161,8 +174,37 @@
 		return registered.length > 0 ? registered : null;
 	}
 
+	function registerPatchEntries(list) {
+		if (!Array.isArray(list)) {
+			runtime.logError('补丁注册失败: 必须传入数组');
+			return null;
+		}
+
+		const registered = [];
+		list.forEach(function(entry) {
+			try {
+				if (!entry || !entry.data || !entry.data.name) return;
+				const normalized = {
+					data: Object.assign({}, entry.data, { visibility: normalizeVisibility(entry.data.visibility) }),
+					appendIfMissing: entry.appendIfMissing === true
+				};
+				state.patchEntries.push(normalized);
+				registered.push(normalized);
+				runtime.logRegisterSuccess(normalized.data.name, [
+					`显示条件: [${normalized.data.visibility}]`,
+					'注入模式: [patch]'
+				]);
+			} catch (error) {
+				runtime.logError('补丁注册异常: 角色分类', error);
+			}
+		});
+		applyHooks();
+		return registered.length > 0 ? registered : null;
+	}
+
 	// 图鉴函数尚未创建时也允许依赖模组注册, 数据会暂存在 state.entries.
 	api.register = registerEntries;
+	api.patch = { register: registerPatchEntries };
 	api.show = function() {
 		const dc = getDc();
 		return dc && typeof dc.collectionCharaCategoryData === 'function'

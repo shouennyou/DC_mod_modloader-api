@@ -18,6 +18,7 @@
 				name: 'characters',
 				apiPath: 'chara.data.character',
 				stateKey: 'externalCharacters',
+				enablePatch: true,
 				validateEntry: function(entry) {
 					return !!(entry && entry.data && entry.data.name && entry.data.folder);
 				},
@@ -27,7 +28,7 @@
 				logRegister: function(runtime, entry) {
 					runtime.logRegisterSuccess(`普通角色: ${entry.data.name}`, [`目标路线: [${entry.target || 'notKilled'}]`]);
 				},
-				transform: function(data, entries, thisArg) {
+				transform: function(data, entries, thisArg, args, patchEntries) {
 					const context = helper.getTyranoContext();
 					const isKillMode = context.sf && context.sf.kill > 0;
 					entries.forEach(function(entry) {
@@ -48,6 +49,22 @@
 							else data.push(finalData);
 						} catch (error) {}
 					});
+					patchEntries.forEach(function(entry) {
+						try {
+							const target = entry.target || 'notKilled';
+							if (isKillMode && target !== 'killed') return;
+							if (!isKillMode && target !== 'notKilled') return;
+							const finalData = helper.resolveObjectSafe(entry.data, thisArg, context, {
+								shouldResolve: function(key) { return key !== 'cond'; },
+								onError: function(error) { return `[解析错误: ${error.message}]`; }
+							});
+							const index = data.findIndex(function(item) {
+								return String(item.folder) === String(finalData.folder);
+							});
+							if (index !== -1) data[index] = Object.assign({}, data[index], finalData);
+							else if (entry.appendIfMissing === true) data.push(finalData);
+						} catch (error) {}
+					});
 					return data;
 				}
 			},
@@ -55,6 +72,7 @@
 				name: 'devilCharacters',
 				apiPath: 'chara.data.devil',
 				stateKey: 'externalDevils',
+				enablePatch: true,
 				validateEntry: function(entry) {
 					return !!(entry && entry.data && entry.data.name && entry.data.folder);
 				},
@@ -64,7 +82,7 @@
 				logRegister: function(runtime, entry) {
 					runtime.logRegisterSuccess(`恶魔: ${entry.data.name}`, [`文件夹 ID: [${entry.data.folder}]`]);
 				},
-				transform: function(data, entries, thisArg) {
+				transform: function(data, entries, thisArg, args, patchEntries) {
 					const context = helper.getTyranoContext();
 					entries.forEach(function(entry) {
 						try {
@@ -79,6 +97,19 @@
 							if (mode === 'override' && existingIndex !== -1) data[existingIndex] = finalData;
 							else if (mode === 'prepend') data.unshift(finalData);
 							else data.push(finalData);
+						} catch (error) {}
+					});
+					patchEntries.forEach(function(entry) {
+						try {
+							const finalData = helper.resolveObjectSafe(entry.data, thisArg, context, {
+								shouldResolve: function(key) { return key !== 'cond'; },
+								onError: function(error) { return `[解析错误: ${error.message}]`; }
+							});
+							const index = data.findIndex(function(item) {
+								return String(item.folder) === String(finalData.folder);
+							});
+							if (index !== -1) data[index] = Object.assign({}, data[index], finalData);
+							else if (entry.appendIfMissing === true) data.push(finalData);
 						} catch (error) {}
 					});
 					return data;

@@ -14,6 +14,7 @@
 [loadjs storage="modloader-api/modules/word.js"]
 [loadjs storage="modloader-api/modules/gallery.js"]
 [loadjs storage="modloader-api/modules/omake.js"]
+[loadjs storage="modloader-api/modules/omake_ex.js"]
 [loadjs storage="modloader-api/modules/theater.js"]
 [loadjs storage="modloader-api/modules/sticker.js"]
 [loadjs storage="modloader-api/modules/effect.js"]

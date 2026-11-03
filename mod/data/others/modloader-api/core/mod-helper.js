@@ -23,6 +23,7 @@
 		'word',
 		'gallery',
 	'omake',
+	'omake.ex',
 	'gekizyou',
 	'sticker',
 	'script',

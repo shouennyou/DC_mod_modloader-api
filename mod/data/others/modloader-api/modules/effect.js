@@ -13,6 +13,7 @@
 		color: '#8e24aa',
 		apiPath: 'effect',
 		stateKey: 'entries',
+		enablePatch: true,
 		checkReady: function() {
 			try {
 				return typeof TYRANO !== 'undefined' && TYRANO.kag && TYRANO.kag.dc && typeof TYRANO.kag.dc.photoEffects === 'function';
@@ -38,6 +39,9 @@
 			if (finalItem.file && target.file) return String(target.file) === String(finalItem.file);
 			if (finalItem.name && target.name) return String(target.name) === String(finalItem.name);
 			return false;
+		},
+		mergePatch: function(target, finalItem) {
+			return Object.assign({}, target, finalItem);
 		},
 		resolveItemData: false,
 		logRegister: function(runtime, entry) {

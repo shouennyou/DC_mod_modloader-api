@@ -14,6 +14,7 @@
 		tag: '结局分类',
 		color: '#e91e63',
 		apiPath: 'ending.category',
+		enablePatch: true,
 		checkReady: function() {
 			try {
 				return typeof TYRANO !== 'undefined' && TYRANO.kag && TYRANO.kag.dc &&
@@ -35,6 +36,9 @@
 		},
 		matcher: function(target, item) {
 			return target && item && target.name === item.name;
+		},
+		mergePatch: function(target, item) {
+			return Object.assign({}, target, item);
 		},
 		logRegister: function(runtime, entry) {
 			const data = entry.data || {};
@@ -84,10 +88,25 @@
 
 	if (typeof window.setInterval === 'function') window.setInterval(installCategoryVisibilityHook, 500);
 
+	function resolveEntryData(entry, thisArg) {
+		const rawData = typeof entry.data === 'function'
+			? entry.data.call(thisArg, helper.getTyranoContext().f, helper.getTyranoContext().sf)
+			: entry.data;
+		return helper.resolveObjectSafe(rawData, thisArg, helper.getTyranoContext(), {
+			shouldResolve: function(key) {
+				return key !== 'hintCond';
+			},
+			onError: function(error) {
+				return `[动态解析错误: ${error.message}]`;
+			}
+		});
+	}
+
 	factory.createObjectHookModule({
 		tag: '结局助手',
 		color: '#e91e63',
 		apiPath: 'ending',
+		enablePatch: true,
 		checkReady: function() {
 			try {
 				return typeof TYRANO !== 'undefined' && TYRANO.kag && TYRANO.kag.dc && TYRANO.kag.dc._ends;
@@ -105,13 +124,22 @@
 			return Object.assign({}, baseData || {});
 		},
 		validateEntry: function(entry) {
-			return !!(entry && entry.data && entry.data.title);
+			return !!(entry && entry.data && (typeof entry.data === 'function' || entry.data.title));
+		},
+		validatePatchEntry: function(entry) {
+			return !!(entry && entry.id !== undefined && entry.data &&
+				(typeof entry.data === 'function' || typeof entry.data === 'object'));
 		},
 		getEntryName: function(entry) {
-			return entry && entry.data && entry.data.title ? entry.data.title : '未知结局';
+			if (!entry || !entry.data) return '未知结局';
+			return typeof entry.data === 'function' ? '动态结局' : entry.data.title || '未知结局';
 		},
 		logRegister: function(runtime, entry) {
 			const data = entry.data;
+			if (typeof data === 'function') {
+				runtime.logRegisterSuccess('动态结局', [`固定 ID: [${entry.id !== undefined ? entry.id : '未指定'}]`]);
+				return;
+			}
 			const rawPhrase = helper.stringifyValue(data.phrase);
 			const phraseDisplay = rawPhrase.length > 50 ? `${rawPhrase.substring(0, 50)}...` : rawPhrase;
 			runtime.logRegisterSuccess(data.title, [
@@ -131,11 +159,13 @@
 				const keys = Object.keys(target).map(Number).filter(function(n) { return !isNaN(n); });
 				targetId = keys.length > 0 ? Math.max.apply(null, keys) + 1 : 0;
 			}
-			target[targetId] = helper.resolveObjectSafe(entry.data, thisArg, helper.getTyranoContext(), {
-				onError: function(error) {
-					return `[动态解析错误: ${error.message}]`;
-				}
-			});
+			target[targetId] = resolveEntryData(entry, thisArg);
+		},
+		injectPatchEntry: function(target, entry, thisArg) {
+			if (entry.id === undefined) return;
+			const resolvedData = resolveEntryData(entry, thisArg);
+			if (target[entry.id]) target[entry.id] = Object.assign({}, target[entry.id], resolvedData);
+			else if (entry.appendIfMissing === true) target[entry.id] = resolvedData;
 		},
 		readAll: function() {
 			return TYRANO.kag.dc._ends();

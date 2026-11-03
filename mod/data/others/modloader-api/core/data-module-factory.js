@@ -104,6 +104,7 @@
 		const moduleApi = helper.ensurePath(modloader, settings.apiPath);
 		const state = {};
 		state[settings.stateKey] = [];
+		state.patchEntries = [];
 
 		function getStore() {
 			return state[settings.stateKey];
@@ -121,6 +122,7 @@
 				let data = originalFn.apply(this, arguments);
 				data = Array.isArray(data) ? data.slice() : [];
 
+				// register() 始终保留完整条目的 append / prepend / override 语义。
 				getStore().forEach(entry => {
 					try {
 						const finalItem = resolveData(entry, this);
@@ -130,6 +132,27 @@
 						});
 					} catch (error) {
 						if (settings.debug) runtime.logError('数据注入异常', error);
+					}
+				});
+
+				// patch.register() 只合并提供的字段，不改变原项目顺序。
+				state.patchEntries.forEach(entry => {
+					try {
+						const patch = resolveData(entry, this);
+						const index = data.findIndex(function(target) {
+							return settings.matcher(target, patch, entry);
+						});
+						if (index !== -1) {
+							data[index] = typeof settings.mergePatch === 'function'
+								? settings.mergePatch(data[index], patch, entry)
+								: Object.assign({}, data[index], patch);
+							return;
+						}
+						const existsInOriginalData = typeof settings.hasOriginalPatchTarget === 'function' &&
+							settings.hasOriginalPatchTarget(originalFn, this, arguments, patch, entry);
+						if (!existsInOriginalData && entry.appendIfMissing === true) data.push(patch);
+					} catch (error) {
+						if (settings.debug) runtime.logError('数据补丁注入异常', error);
 					}
 				});
 
@@ -173,6 +196,29 @@
 			return registered.length > 0 ? registered : null;
 		}
 
+		function registerPatchEntries(list) {
+			if (!Array.isArray(list)) {
+				runtime.logError('补丁注册失败: 必须传入数组');
+				return null;
+			}
+			const registered = [];
+			list.forEach(entry => {
+				try {
+					const validate = settings.validatePatchEntry || settings.validateEntry;
+					if (!validate(entry)) return;
+					state.patchEntries.push(entry);
+					registered.push(entry);
+					if (settings.debug) {
+						const log = settings.logPatchRegister || settings.logRegister;
+						if (typeof log === 'function') log(runtime, Object.assign({}, entry, { mode: 'patch' }));
+					}
+				} catch (error) {
+					runtime.logError(`补丁注册异常: ${settings.getEntryName(entry)}`, error);
+				}
+			});
+			return registered.length > 0 ? registered : null;
+		}
+
 		function showData() {
 			try {
 				const allItems = settings.readAll();
@@ -189,6 +235,7 @@
 		// 注册接口在引擎初始化前即可使用, 数据会暂存并在 hook 安装后生效.
 		moduleApi.register = registerEntries;
 		moduleApi.show = showData;
+		if (settings.enablePatch) moduleApi.patch = { register: registerPatchEntries };
 
 		return { runtime, state, api: moduleApi };
 	}
@@ -209,7 +256,7 @@
 
 		const runtime = modloader.ModuleRuntime.createRuntime(settings);
 		const moduleApi = helper.ensurePath(modloader, settings.apiPath);
-		const state = { entries: [] };
+		const state = { entries: [], patchEntries: [] };
 
 		function applyHook() {
 			const originalFn = settings.getSource();
@@ -222,6 +269,13 @@
 						settings.injectEntry(data, entry, this);
 					} catch (error) {
 						if (settings.debug) runtime.logError('数据注入异常', error);
+					}
+				});
+				state.patchEntries.forEach(entry => {
+					try {
+						if (typeof settings.injectPatchEntry === 'function') settings.injectPatchEntry(data, entry, this);
+					} catch (error) {
+						if (settings.debug) runtime.logError('数据补丁注入异常', error);
 					}
 				});
 				return data;
@@ -263,6 +317,29 @@
 			return registered.length > 0 ? registered : null;
 		}
 
+		function registerPatchEntries(list) {
+			if (!Array.isArray(list)) {
+				runtime.logError('补丁注册失败: 必须传入数组');
+				return null;
+			}
+			const registered = [];
+			list.forEach(entry => {
+				try {
+					const validate = settings.validatePatchEntry || settings.validateEntry;
+					if (!validate(entry)) return;
+					state.patchEntries.push(entry);
+					registered.push(entry);
+					if (settings.debug) {
+						const log = settings.logPatchRegister || settings.logRegister;
+						if (typeof log === 'function') log(runtime, Object.assign({}, entry, { mode: 'patch' }));
+					}
+				} catch (error) {
+					runtime.logError(`补丁注册异常: ${settings.getEntryName(entry)}`, error);
+				}
+			});
+			return registered.length > 0 ? registered : null;
+		}
+
 		function showData() {
 			try {
 				const allData = settings.readAll();
@@ -278,6 +355,7 @@
 		});
 		moduleApi.register = registerEntries;
 		moduleApi.show = showData;
+		if (settings.enablePatch) moduleApi.patch = { register: registerPatchEntries };
 
 		return { runtime, state, api: moduleApi };
 	}

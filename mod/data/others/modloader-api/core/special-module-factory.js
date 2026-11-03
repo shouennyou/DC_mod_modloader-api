@@ -23,6 +23,7 @@
 		const state = {};
 		settings.targets.forEach(function(target) {
 			state[target.stateKey] = [];
+			if (target.enablePatch) state[`${target.stateKey}Patches`] = [];
 		});
 
 		function createWrappedFunction(originalFn, target) {
@@ -34,7 +35,8 @@
 					if (settings.debug) runtime.logError('数据读取失败', error);
 				}
 				if (!Array.isArray(data)) data = [];
-				return target.transform(data, state[target.stateKey], this, arguments);
+				return target.transform(data, state[target.stateKey], this, arguments,
+					target.enablePatch ? state[`${target.stateKey}Patches`] : []);
 			};
 			wrapped.__isHooked = true;
 			return wrapped;
@@ -79,20 +81,25 @@
 
 		function registerTargetApi(target) {
 			const targetApi = helper.ensurePath(modloader, target.apiPath);
-			targetApi.register = function(list) {
+			function registerEntries(list, isPatch) {
 				if (!Array.isArray(list)) return null;
 				const registered = [];
 				list.forEach(function(entry) {
 					try {
-						if (!target.validateEntry(entry)) return;
-						state[target.stateKey].push(entry);
+						const validate = isPatch && target.validatePatchEntry ? target.validatePatchEntry : target.validateEntry;
+						if (!validate(entry)) return;
+						state[isPatch ? `${target.stateKey}Patches` : target.stateKey].push(entry);
 						registered.push(entry);
-						if (settings.debug) target.logRegister(runtime, entry);
+						if (settings.debug) target.logRegister(runtime, Object.assign({}, entry, isPatch ? { mode: 'patch' } : {}));
 					} catch (error) {
-						runtime.logError(`注册异常: ${target.getEntryName(entry)}`, error);
+						runtime.logError(`${isPatch ? '补丁' : '注册'}异常: ${target.getEntryName(entry)}`, error);
 					}
 				});
 				return registered.length > 0 ? registered : null;
+			}
+			targetApi.register = function(list) { return registerEntries(list, false); };
+			if (target.enablePatch) targetApi.patch = {
+				register: function(list) { return registerEntries(list, true); }
 			};
 		}
 

@@ -1,6 +1,8 @@
 [call storage="modloader-api.ks"]
 [modloader_bootstrap_wait]
 
+[plugin name="translate"]
+
 ;メニューボタン非表示
 ;[hidemenubutton]
 

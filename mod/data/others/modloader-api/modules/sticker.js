@@ -13,6 +13,7 @@
 		color: '#e91e63',
 		apiPath: 'sticker',
 		stateKey: 'entries',
+		enablePatch: true,
 		checkReady: function() {
 			try {
 				return typeof TYRANO !== 'undefined' && TYRANO.kag && TYRANO.kag.dc && typeof TYRANO.kag.dc.stickerData === 'function';
@@ -34,6 +35,9 @@
 		},
 		matcher: function(target, finalItem) {
 			return target && finalItem && target.file == finalItem.file;
+		},
+		mergePatch: function(target, finalItem) {
+			return Object.assign({}, target, finalItem);
 		},
 		resolveItemData: true,
 		logRegister: function(runtime, entry) {
