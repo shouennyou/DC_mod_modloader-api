@@ -40,6 +40,7 @@ modules/ks-script-module.js
 modules/character-setting-module.js
 modules/character-data-module.js
 modules/character-profile-module.js
+modules/character-category.js
 modules/ending-module.js
 modules/word-module.js
 modules/gallery-module.js
@@ -48,6 +49,7 @@ modules/theater-module.js
 modules/sticker-module.js
 modules/effect-module.js
 modules/system-variable-module.js
+modules/language.js
 ```
 
 ---
@@ -58,6 +60,9 @@ modules/system-variable-module.js
 window.modloaderApi.chara.profile.register(...)
 window.modloaderApi.chara.profile.show()
 
+window.modloaderApi.chara.category.register(...)
+window.modloaderApi.chara.category.show()
+
 window.modloaderApi.chara.data.character.register(...)
 window.modloaderApi.chara.data.devil.register(...)
 window.modloaderApi.chara.data.show()
@@ -67,9 +72,14 @@ window.modloaderApi.chara.setting.show()
 
 window.modloaderApi.ending.register(...)
 window.modloaderApi.ending.show()
+window.modloaderApi.ending.category.register(...)
+window.modloaderApi.ending.category.show()
 
 window.modloaderApi.word.register(...)
 window.modloaderApi.word.show()
+
+window.modloaderApi.lang.register(...)
+window.modloaderApi.lang.show()
 
 window.modloaderApi.gallery.register(...)
 window.modloaderApi.gallery.show()
@@ -96,6 +106,20 @@ window.modloaderApi.ks.show()
 window.modloaderApi.ks.show.json(...)
 window.modloaderApi.ks.show.raw(...)
 ```
+
+## 3.1 依赖模组注册握手
+
+启用模组中声明依赖 `modloader-api` 的模组，应在自己的注入脚本完成初始化后回报结果：
+
+```javascript
+window.modloaderApi.registration.complete('my-mod-id', true)
+// 失败时传入 false，可附带错误信息
+window.modloaderApi.registration.complete('my-mod-id', false, error)
+```
+
+`registration.onRegistration(callback)` 会收到每个模组的成功/失败事件，以及最终的 `ready` 或 `failed` 事件。`registration.waitForCompletion()` 返回 Promise；游戏的 `first.ks` 会在所有已启用依赖模组回报后继续执行。
+
+可用 `registration.status()` 查看 `expected`、`completed` 和 `pending`。预期数量来自 `cache/mod-info.json` 中已启用且 `depends.modloader-api` 存在的条目。
 
 ---
 
@@ -136,6 +160,12 @@ window.modloaderApi.ks.show.raw(...)
 - 常见可选字段：`entry.mode`、`entry.data.no`、`entry.data.description`、`entry.data.sex`、`entry.data.breed`、`entry.data.category`、`entry.data.alts`
 - 支持的 `mode`：`append`、`prepend`
 
+#### `window.modloaderApi.chara.category.register(dataArray)`
+- 必填字段：`entry.data.name`
+- 常见可选字段：`entry.mode`、`entry.data.visibility`、`entry.data.text`
+- 支持的 `mode`：`append`、`prepend`、`override`
+- 说明：`visibility: 'always'` 为默认值, 分类会立即显示并纳入未全解锁统计; `visibility: 'allCharasOpen'` 仅在 `allCharasOpenInCollection()` 为真时显示和统计
+
 #### `window.modloaderApi.chara.data.character.register(dataArray)`
 - 必填字段：`entry.data.name`、`entry.data.folder`
 - 常见可选字段：`entry.mode`、`entry.target`、`entry.data.difficulty`、`entry.data.phrase`、`entry.data.cond`、`entry.data.scenario`、`entry.data.tutorial`
@@ -164,6 +194,12 @@ window.modloaderApi.ks.show.raw(...)
 - 常见可选字段：`entry.type`、`entry.mode`
 - 支持的 `mode`：`append`、`prepend`、`replace`
 - 说明：`entry.type` 不传时默认写入 `ngWords`
+
+#### `window.modloaderApi.lang.register(dataArray)`
+- 必填字段：`entry.data`
+- 常见可选字段：`entry.mode`
+- 支持的 `mode`：`append`、`override`
+- 说明：`entry.data` 按 `window.tyrano_lang` 的对象结构传入, `append` 仅新增不存在的键, `override` 递归覆盖已有键
 
 #### `window.modloaderApi.gallery.register(dataArray)`
 - 必填字段：`entry.data.name`
@@ -210,6 +246,25 @@ window.modloaderApi.chara.profile.register([
   {
     data: {
       name: '示例角色'
+    }
+  }
+]);
+```
+
+#### `window.modloaderApi.chara.category.register(...)`
+
+```javascript
+window.modloaderApi.chara.category.register([
+  {
+    data: {
+      name: 'oc',
+      visibility: 'always'
+    }
+  },
+  {
+    data: {
+      name: 'secret',
+      visibility: 'allCharasOpen'
     }
   }
 ]);
@@ -269,6 +324,24 @@ window.modloaderApi.ending.register([
 window.modloaderApi.word.register([
   {
     data: ['示例词汇']
+  }
+]);
+```
+
+#### `window.modloaderApi.lang.register(...)`
+
+```javascript
+window.modloaderApi.lang.register([
+  {
+    mode: 'override',
+    data: {
+      word: {
+        custom_label: '自定义文本'
+      },
+      novel: {
+        custom_button: 'custom_button.png'
+      }
+    }
   }
 ]);
 ```
@@ -463,6 +536,17 @@ window.modloaderApi.chara.profile.show()
 ]
 ```
 
+### 5.1.1 `window.modloaderApi.chara.category`
+
+```javascript
+window.modloaderApi.chara.category.register(dataArray)
+window.modloaderApi.chara.category.show()
+```
+
+`show()` 返回当前可显示的角色分类数组。默认从 `window.tyrano_lang.word.collection.chara[分类名]` 读取分类文本, 也可通过 `entry.data.text` 指定。
+
+分类的 `visibility` 影响图鉴显示与统计：`always` 会在未完全解锁时显示并纳入统计; `allCharasOpen` 则在 `allCharasOpenInCollection()` 为真后才显示和统计。
+
 ### 5.2 `window.modloaderApi.chara.data`
 
 ```javascript
@@ -514,6 +598,25 @@ window.modloaderApi.ending.show()
 }
 ```
 
+`ending.category.register(...)` 用于向游戏的 `endCategoryData()` 注入结局类别.
+每个条目必须提供 `data.name`. `data.text` 支持直接文本或 `$.lang(...)` 返回值,
+也可以使用函数动态返回文本. `visibility` 默认为 `always`, 与 `normal` 的显示方式一致.
+设为 `secret` 或 `locked` 后, 会复用游戏的 `secretEndOpenInCollection()` 解锁条件.
+支持的模式为 `append`, `prepend` 和 `override`.
+
+```javascript
+window.modloaderApi.ending.category.register([
+  { data: { name: 'bonus', text: 'Bonus endings' } },
+  {
+    data: {
+      name: 'bonus_secret',
+      text: $.lang('collection')['ending']['secret_bonus'],
+      visibility: 'secret'
+    }
+  }
+])
+```
+
 ### 5.5 `window.modloaderApi.word`
 
 ```javascript
@@ -530,7 +633,16 @@ window.modloaderApi.word.show()
 }
 ```
 
-### 5.6 `window.modloaderApi.gallery`
+### 5.6 `window.modloaderApi.lang`
+
+```javascript
+window.modloaderApi.lang.register(dataArray)
+window.modloaderApi.lang.show()
+```
+
+`show()` 返回当前完整的 `window.tyrano_lang` 对象。注册数据使用与 `tyrano/lang.js` 相同的嵌套结构, 例如 `word` 和 `novel` 分组。
+
+### 5.7 `window.modloaderApi.gallery`
 
 ```javascript
 window.modloaderApi.gallery.register(dataArray)
@@ -549,7 +661,7 @@ window.modloaderApi.gallery.show()
 ]
 ```
 
-### 5.7 `window.modloaderApi.omake`
+### 5.8 `window.modloaderApi.omake`
 
 ```javascript
 window.modloaderApi.omake.register(dataArray)
@@ -569,7 +681,7 @@ window.modloaderApi.omake.show()
 ]
 ```
 
-### 5.8 `window.modloaderApi.gekizyou`
+### 5.9 `window.modloaderApi.gekizyou`
 
 ```javascript
 window.modloaderApi.gekizyou.register(dataArray)
@@ -582,7 +694,7 @@ window.modloaderApi.gekizyou.show()
 [45, 46, 47]
 ```
 
-### 5.9 `window.modloaderApi.sticker`
+### 5.10 `window.modloaderApi.sticker`
 
 ```javascript
 window.modloaderApi.sticker.register(dataArray)
@@ -601,7 +713,7 @@ window.modloaderApi.sticker.show()
 ]
 ```
 
-### 5.10 `window.modloaderApi.effect`
+### 5.11 `window.modloaderApi.effect`
 
 ```javascript
 window.modloaderApi.effect.register(dataArray)
@@ -620,7 +732,7 @@ window.modloaderApi.effect.show()
 ]
 ```
 
-### 5.11 `window.modloaderApi.ks`
+### 5.12 `window.modloaderApi.ks`
 
 ```javascript
 window.modloaderApi.ks.register.json(rules)
@@ -636,7 +748,7 @@ window.modloaderApi.ks.show.raw(fileName)
 - `ks.show.json(fileName)` 返回 `{ fileName, data }`
 - `ks.show.raw(fileName)` 返回 `{ fileName, originalText, transformedText }`
 
-### 5.12 KS 调试导出
+### 5.13 KS 调试导出
 
 在 `modloader-api` 的配置中开启导出选项后, 已加载且完成规则处理的剧本会自动写入:
 
@@ -647,30 +759,15 @@ window.modloaderApi.ks.show.raw(fileName)
 
 ---
 
-## 6. 调试面板 API
-
-```javascript
-window.modloaderApi.panel.registerPage(config)
-window.modloaderApi.panel.open(id)
-```
-
-推荐由 `loader()` 把原始数据转成展示协议：
-
-- 列表：`{ type: 'list', title, columns, items, raw }`
-- 对象：`{ type: 'object', title, data, raw }`
-
----
-
-## 7. 推荐实践
+## 6. 推荐实践
 
 - 注册时始终用数组
 - 动态字段尽量保持纯函数
-- 展示逻辑优先放进 panel
 - KS 规则最好补 `description`
 
 ---
 
-## 8. 常见问题
+## 7. 常见问题
 
 ### 为什么 `register(...)` 返回 `null`？
 
@@ -686,6 +783,5 @@ window.modloaderApi.panel.open(id)
 因为当前设计目标是：
 
 - `show()` 只返回原始数据
-- `panel` 单独处理展示
 - 避免展示协议污染业务 API
 

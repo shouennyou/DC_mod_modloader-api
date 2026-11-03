@@ -22,7 +22,35 @@
 	var state = {
 		isReady: false,
 		isLoaded: false,
-		registeredNames: new Set()
+		registeredNames: new Set(),
+		entries: []
+	};
+
+	function applyEntry(chara) {
+		if (chara.applied || !checkReady()) return;
+		try {
+			const { name, audio, font } = chara;
+			if (audio) TYRANO.kag.ftag.startTag('popopo_chara', { name, storage: audio });
+			if (font) TYRANO.kag.ftag.startTag('font_chara', { name, face: font });
+			chara.applied = true;
+		} catch (error) {
+			console.error('[角色配置助手] 注册应用失败:', error);
+		}
+	}
+
+	modloader.chara.setting.register = function(charaList) {
+		if (!Array.isArray(charaList)) return null;
+		const registeredList = [];
+		charaList.forEach(chara => {
+			if (!chara || !chara.name) return;
+			const entry = Object.assign({}, chara, { applied: false });
+			state.registeredNames.add(entry.name);
+			state.entries.push(entry);
+			applyEntry(entry);
+			registeredList.push(chara);
+			if (CONFIG.debug) console.log(`${logTag} %c注册成功: %c${entry.name}`, tagStyle, resetStyle, successStyle, resetStyle);
+		});
+		return registeredList.length > 0 ? registeredList : null;
 	};
 
 	const logger = modloader.ModHelper.createLogger(CONFIG.tag, '#00bcd4');
@@ -56,48 +84,7 @@
 		if (state.isLoaded) return;
 
 		try {
-			modloader.chara.setting.register = function(charaList) {
-				if (!Array.isArray(charaList)) return null;
-
-				if (!checkReady()) {
-					console.error(`${logTag} %c注册失败:%c 引擎未就绪`, tagStyle, resetStyle, errorStyle, resetStyle);
-					return null;
-				}
-
-				const registeredList = [];
-				charaList.forEach(chara => {
-					const { name, audio, font } = chara;
-					if (!name) return;
-
-					try {
-						state.registeredNames.add(name);
-						registeredList.push(chara);
-						if (audio) {
-							TYRANO.kag.ftag.startTag('popopo_chara', { name, storage: audio });
-						}
-						if (font) {
-							TYRANO.kag.ftag.startTag('font_chara', { name, face: font });
-						}
-
-						if (CONFIG.debug) {
-							setTimeout(() => {
-								const audioStore = typeof storages !== 'undefined' ? storages : null;
-								const fontStore = (TYRANO.kag && TYRANO.kag.dc) ? TYRANO.kag.dc.font_chara : null;
-								const curAudio = audioStore ? (audioStore[name] || '未定义') : '无法读取';
-								const curFont = fontStore ? (fontStore[name] || '未定义') : '无法读取';
-
-								console.log(`${logTag} %c注册成功: %c${name}`, tagStyle, resetStyle, successStyle, resetStyle);
-								console.log(`      └─ 音频: [${curAudio}]`);
-								console.log(`      └─ 字体: [${curFont}]`);
-							}, 200);
-						}
-					} catch (e) {
-						console.error(`${logTag} %c注册异常: %c${name}`, tagStyle, resetStyle, errorStyle, resetStyle);
-						console.log('      └─ 详细信息:', e);
-					}
-				});
-				return registeredList.length > 0 ? registeredList : null;
-			};
+			state.entries.forEach(applyEntry);
 
 			modloader.chara.setting.show = function() {
 				try {

@@ -45,22 +45,19 @@
 				runtime.logError('注册失败: 必须传入数组');
 				return null;
 			}
-			if (!settings.checkReady()) {
-				runtime.logError('注册失败: 引擎未就绪');
-				return null;
-			}
-
 			const registered = [];
 			payload.forEach(item => {
 				try {
 					const key = settings.getCollectionKey(item) || settings.defaultKey;
-					settings.ensureCollection(key);
 					const values = helper.ensureArray(settings.getPayloadData(item));
 					if (values.length === 0) return;
 					const mode = helper.normalizeMode(item.mode, settings.allowedModes, 'append');
 					const stateList = ensureStateKey(key);
 					state.collections[key] = applyMode(stateList, values, mode);
-					settings.writeCollection(key, state.collections[key], mode, values);
+					if (settings.checkReady()) {
+						settings.ensureCollection(key);
+						settings.writeCollection(key, state.collections[key], mode, values);
+					}
 					registered.push({ key, mode, data: values });
 					if (settings.debug) settings.logRegister(runtime, key, mode, values);
 				} catch (error) {
@@ -79,7 +76,13 @@
 			return settings.getRawData(keys, state.collections);
 		};
 
-		runtime.initialize(settings.checkReady, function() {});
+		runtime.initialize(settings.checkReady, function() {
+			Object.keys(state.collections).forEach(function(key) {
+				const values = state.collections[key];
+				settings.ensureCollection(key);
+				settings.writeCollection(key, values, 'replace', values);
+			});
+		});
 
 		return { runtime, state, api: moduleApi };
 	}

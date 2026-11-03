@@ -14,18 +14,20 @@
 	}
 
 	[
-		'chara.profile',
-		'chara.data.character',
+	'chara.profile',
+	'chara.category',
+	'chara.data.character',
 		'chara.data.devil',
 		'chara.setting',
 		'ending',
 		'word',
 		'gallery',
-		'omake',
-		'gekizyou',
-		'sticker',
-		'script',
-		'sysvar'
+	'omake',
+	'gekizyou',
+	'sticker',
+	'script',
+	'sysvar',
+	'lang'
 	].forEach(path => ensurePath(modloader, path));
 
 	if (modloader.ModHelper) return;

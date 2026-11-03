@@ -185,9 +185,10 @@
 
 		runtime.initialize(settings.checkReady, function() {
 			applySmartHook();
-			moduleApi.register = registerEntries;
-			moduleApi.show = showData;
 		});
+		// 注册接口在引擎初始化前即可使用, 数据会暂存并在 hook 安装后生效.
+		moduleApi.register = registerEntries;
+		moduleApi.show = showData;
 
 		return { runtime, state, api: moduleApi };
 	}
@@ -274,9 +275,9 @@
 
 		runtime.initialize(settings.checkReady, function() {
 			applySmartHook();
-			moduleApi.register = registerEntries;
-			moduleApi.show = showData;
 		});
+		moduleApi.register = registerEntries;
+		moduleApi.show = showData;
 
 		return { runtime, state, api: moduleApi };
 	}

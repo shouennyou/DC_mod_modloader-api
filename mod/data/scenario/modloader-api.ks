@@ -9,6 +9,7 @@
 [loadjs storage="modloader-api/modules/character-setting.js"]
 [loadjs storage="modloader-api/modules/character-data.js"]
 [loadjs storage="modloader-api/modules/character-profile.js"]
+[loadjs storage="modloader-api/modules/character-category.js"]
 [loadjs storage="modloader-api/modules/ending.js"]
 [loadjs storage="modloader-api/modules/word.js"]
 [loadjs storage="modloader-api/modules/gallery.js"]
@@ -17,6 +18,7 @@
 [loadjs storage="modloader-api/modules/sticker.js"]
 [loadjs storage="modloader-api/modules/effect.js"]
 [loadjs storage="modloader-api/modules/system-variable.js"]
+[loadjs storage="modloader-api/modules/language.js"]
 
 [loadjs storage="modloader-api/bootstrap.js"]
 [return]
