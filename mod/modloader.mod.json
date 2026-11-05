@@ -11,6 +11,6 @@
     "repo": "shouennyou/DC_mod_modloader-api"
   },
   "depends": {
-    "devilconnection-modloader": ">=1.7.1"
+    "devilconnection-modloader": ">=1.8.1"
   }
 }
