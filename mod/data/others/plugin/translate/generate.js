@@ -3,7 +3,17 @@
   "use strict";
   const kag = TYRANO.kag;
   if (typeof kag.joinTranslatePath !== "function") throw new Error("[translate] 请先加载 runtime.js");
+  // init.ks 可能因剧本重载再次执行，配置生成任务只注册一次。
+  if (kag._translateGeneratorLoaded) return;
+  kag._translateGeneratorLoaded = true;
   const storage = typeof window === "undefined" ? null : window.modloader;
+  // 原游戏资源只读；自动生成的语言包写入可写配置目录。
+  const CACHE_ROOT = "config/modloader-api/translate";
+  const ORIGINAL_DATA_ROOT = "original-game-resources/data";
+  const CONFIG_PATH = "config/modloader-api.json";
+  const GENERATE_SWITCH_KEY = "generateTranslationTemplate";
+  const GENERATE_LANGUAGE_KEY = "translationTemplateLanguage";
+  const DEFAULT_LANGUAGE = "sch";
   if (!storage || typeof storage.readFile !== "function" || typeof storage.writeFile !== "function" || typeof storage.readdir !== "function" || typeof storage.stat !== "function") {
     throw new Error("[translate] window.modloader 文件接口不可用");
   }
@@ -186,12 +196,17 @@
   };
   kag.generateLangFile = async function (name) {
     if (!/^[a-zA-Z0-9_-]+$/.test(String(name))) throw new Error("语言名称只能包含英文字母、数字、下划线和连字符。");
-    const sourceRoot = "data/scenario";
-    const langRoot = kag.joinTranslatePath("data", "others", "lang", name);
+    const sourceRoot = ORIGINAL_DATA_ROOT + "/scenario";
+    const langRoot = kag.joinTranslatePath(CACHE_ROOT, "data", "others", "lang", name);
     const logRoot = kag.joinTranslatePath(langRoot, "log");
     const parseRoot = kag.joinTranslatePath(langRoot, "parse");
-    const manifestPath = kag.joinTranslatePath("data", "others", "lang", String(name) + ".json");
-    const files = await listScenarioFiles(sourceRoot);
+    const manifestPath = kag.joinTranslatePath(CACHE_ROOT, "data", "others", "lang", String(name) + ".json");
+    let files;
+    try {
+      files = await listScenarioFiles(sourceRoot);
+    } catch (error) {
+      throw new Error("无法从 " + ORIGINAL_DATA_ROOT + " 读取原游戏资源。请在 ModLoader 中选择有效的游戏核心。" + "（" + (error.message || error) + "）");
+    }
     const summary = { total: files.length, success: 0, failed: 0, failures: [] }, charas = {}, jsonFiles = [], ksFiles = [];
     for (const file of files) {
       const relative = String(file).slice(sourceRoot.length).replace(/^\//, "");
@@ -275,4 +290,34 @@
     console.log("[translate] 语言模板生成结束：", summary);
     return summary;
   };
+  async function generateFromConfig() {
+    const content = await storage.readFile(CONFIG_PATH);
+    if (content == null || content === "") return;
+    let config;
+    try {
+      config = JSON.parse(content);
+    } catch (error) {
+      console.error("[translate] 无法读取生成开关：配置 JSON 无法解析", error);
+      return;
+    }
+    if (!config || typeof config !== "object" || Array.isArray(config) || config[GENERATE_SWITCH_KEY] !== true) return;
+    const language = String(config[GENERATE_LANGUAGE_KEY] || DEFAULT_LANGUAGE).trim();
+    if (!/^[a-zA-Z0-9_-]+$/.test(language)) {
+      console.error("[translate] 生成开关的语言名称无效：" + language);
+      return;
+    }
+    try {
+      const summary = await kag.generateLangFile(language);
+      config[GENERATE_SWITCH_KEY] = false;
+      requireWrite(await storage.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2)), CONFIG_PATH);
+      console.info("[translate] 已完成配置触发的语言模板生成，并关闭生成开关：" + language, summary);
+    } catch (error) {
+      // 失败时保留开关，方便修正游戏核心或配置后再次启动重试。
+      console.error("[translate] 配置触发的语言模板生成失败：", error);
+    }
+  }
+  // 配置由 Mod Manager 写入 config/modloader-api.json；开关在下次进入游戏时执行一次。
+  Promise.resolve().then(generateFromConfig).catch(function (error) {
+    console.error("[translate] 读取生成开关失败：", error);
+  });
 }());

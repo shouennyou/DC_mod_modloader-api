@@ -15,6 +15,21 @@
       "label": "导出 KS RAW",
       "default": false,
       "help": "导出到 config/modloader-api/raw/xxx.ks.raw."
+    },
+    {
+      "key": "generateTranslationTemplate",
+      "type": "toggle",
+      "label": "生成翻译模板",
+      "default": false,
+      "help": "开启后下次进入游戏时，从原游戏资源生成翻译模板到 config/modloader-api/translate；成功后会自动关闭。"
+    },
+    {
+      "key": "translationTemplateLanguage",
+      "type": "text",
+      "label": "翻译模板语言",
+      "default": "sch",
+      "placeholder": "sch",
+      "help": "生成语言包的名称，只能使用英文字母、数字、下划线和连字符。"
     }
   ]
 }

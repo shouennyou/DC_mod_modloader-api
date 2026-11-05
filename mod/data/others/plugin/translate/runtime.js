@@ -276,7 +276,7 @@
             this.kag.stat &&
             this.kag.stat.chara_ptext;
           if (ptext) {
-            $("." + ptext).text(displayName);
+            $("." + ptext).html(displayName);
           }
         }
         return result;
@@ -439,16 +439,8 @@
       kag._translateCharaCache = {};
     } else {
       if (!/^[a-zA-Z0-9_-]+$/.test(language)) throw new Error("无效的语言名称：" + language);
-      let pack;
-      try {
-        pack = await kag.loadTranslateManifest(language);
-      } catch (error) {
-        const canGenerate = typeof window !== "undefined" && window.modloader && typeof kag.generateLangFile === "function";
-        if (!error.translateManifestMissing || !canGenerate) throw error;
-        console.info("[translate] 语言包不存在，开始自动生成：" + language);
-        await kag.generateLangFile(language);
-        pack = await kag.loadTranslateManifest(language);
-      }
+      // 运行时只负责加载已部署的语言包；生成由 generate.js 的配置开关独立触发。
+      const pack = await kag.loadTranslateManifest(language);
       kag.lang = language;
       kag._translateSceneCache = pack.scenes;
       kag._translateDialogueCache = pack.dialogues;
