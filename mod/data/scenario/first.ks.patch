@@ -1,0 +1,13 @@
+Index: first.ks
+===================================================================
+--- first.ks
++++ first.ks
+@@ -1,5 +1,8 @@
++[call storage="modloader-api.ks"]
++[modloader_bootstrap_wait]
+ 
++[plugin name="translate"]
+ 
+ ;メニューボタン非表示
+ ;[hidemenubutton]
+ 
