@@ -30,7 +30,7 @@ jobs:
         run: |
           ID=$(jq -r '.id' mod/modloader.mod.json)
           asar pack mod "$ID.asar"
-          echo "ID=$ID" >> $GITHUB_ENV
+          echo "ID=$ID" >> "$GITHUB_ENV"
 
       - name: Verify build
         run: |
@@ -40,20 +40,47 @@ jobs:
           fi
           echo "构建成功：$ID.asar"
 
+      - name: Generate Changelog
+        run: |
+          CURRENT_TAG="${{ inputs.tag_name }}"
+
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "$CURRENT_TAG^" 2>/dev/null || true)
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log "$PREVIOUS_TAG..$CURRENT_TAG" \
+              --pretty=format:"- %s (%h)" \
+              --no-merges)
+          else
+            CHANGELOG=$(git log "$CURRENT_TAG" \
+              --pretty=format:"- %s (%h)" \
+              --no-merges)
+          fi
+
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="No changes."
+          fi
+
+          echo "CHANGELOG<<EOF" >> "$GITHUB_ENV"
+          echo "$CHANGELOG" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+
       - name: Generate update.json
         run: |
           UPDATE_JSON="$RUNNER_TEMP/update.json"
+
           jq --arg asarUrl "https://github.com/${{ github.repository }}/releases/download/${{ inputs.tag_name }}/$ID.asar" \
-             --arg changelog "https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag_name }}" \
+             --arg changelog "$CHANGELOG" \
              'del(.update, .injections) + {asarUrl: $asarUrl, changelog: $changelog}' \
              mod/modloader.mod.json > "$UPDATE_JSON"
-          echo "UPDATE_JSON=$UPDATE_JSON" >> $GITHUB_ENV
+
+          echo "UPDATE_JSON=$UPDATE_JSON" >> "$GITHUB_ENV"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag_name }}
           name: ${{ inputs.tag_name }}
+          body: ${{ env.CHANGELOG }}
           files: |
             ${{ env.ID }}.asar
             ${{ env.UPDATE_JSON }}
