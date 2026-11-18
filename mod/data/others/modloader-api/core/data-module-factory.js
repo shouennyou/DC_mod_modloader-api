@@ -163,6 +163,9 @@
 		}
 
 		function applySmartHook() {
+			// 某些可选模块会在确认当前游戏版本不支持后退化为 no-op。
+			// 此时无需安装 DC 监听器，也不能继续等待不存在的原生函数。
+			if (typeof settings.shouldSkipHook === 'function' && settings.shouldSkipHook()) return;
 			if (typeof TYRANO === 'undefined' || !TYRANO.kag) {
 				helper.waitUntilReady(function() {
 					return typeof TYRANO !== 'undefined' && TYRANO.kag;

@@ -266,7 +266,7 @@ window.modloaderApi.registration.complete('my-mod-id', false, error)
 - 说明：仅合并同名番外的提供字段并保留原顺序；分页读取时会自动识别原项目，避免错误追加到当前页或末尾。
 
 #### `window.modloaderApi.omake.ex.register(dataArray)`
-- 对应新版游戏的 `TYRANO.kag.dc.additionalNgSceneData()`；旧版游戏没有该函数时不会安装钩子。
+- 对应新版游戏的 `TYRANO.kag.dc.additionalNgSceneData()`；当前游戏资源缺少 `data/others/omake_ex.js` 时会永久退化为 no-op，不安装钩子也不持续重试。
 - 必填字段：`entry.data.name`
 - 常见可选字段：`entry.mode`、`entry.data.title`、`entry.data.cond`、`entry.data.storage`
 - 支持的 `mode`：`append`、`prepend`、`override`
@@ -790,7 +790,7 @@ window.modloaderApi.omake.ex.patch.register([
 ])
 ```
 
-`show()` 返回 `additionalNgSceneData()` 的原始数组。
+`show()` 返回 `additionalNgSceneData()` 的原始数组；不支持该功能的旧版游戏返回空数组。
 
 ### 5.9 `window.modloaderApi.gekizyou`
 
