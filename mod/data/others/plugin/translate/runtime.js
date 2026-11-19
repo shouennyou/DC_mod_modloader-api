@@ -74,11 +74,29 @@
     }
     return entries;
   }
+  function mergeDialogueOverlayEntries(overlays) {
+    const merged = [], positions = Object.create(null);
+    (overlays || []).forEach(function (overlay) {
+      const ordinals = Object.create(null);
+      parseDialogueOverlay(overlay).forEach(function (entry) {
+        const ordinal = ordinals[entry.source] || 0;
+        ordinals[entry.source] = ordinal + 1;
+        const key = entry.source + "\0" + ordinal;
+        if (Object.prototype.hasOwnProperty.call(positions, key)) merged[positions[key]] = entry;
+        else {
+          positions[key] = merged.length;
+          merged.push(entry);
+        }
+      });
+    });
+    return merged;
+  }
   kag.applyDialogueTranslationsToSource = function (text, overlay) {
     const source = normalizeDialogueText(text);
-    if (typeof overlay !== "string" || overlay === "") return source;
+    const entries = Array.isArray(overlay) ? mergeDialogueOverlayEntries(overlay) : parseDialogueOverlay(overlay);
+    if (entries.length === 0) return source;
     const blocks = extractDialogueBlocks(source), used = Object.create(null), replacements = [];
-    parseDialogueOverlay(overlay).forEach(function (entry) {
+    entries.forEach(function (entry) {
       const index = blocks.findIndex(function (block, blockIndex) {
         return !used[blockIndex] && block.value === entry.source;
       });
@@ -191,6 +209,32 @@
   function isSafeDirectoryEntry(name) {
     return typeof name === "string" && name !== "" && name !== "." && name !== ".." && !/[\\/\0]/.test(name);
   }
+  function getTranslationLayerDirectory(name) {
+    const match = /^(json|ks)(?:\.([A-Za-z0-9._-]+))?$/.exec(name);
+    if (!match) return null;
+    const layer = match[2] || "";
+    if (layer && layer.split(/[._-]+/).some(function (part) { return /^(?:bak|backup)$/i.test(part); })) return null;
+    return { name: name, kind: match[1], layer: layer, isBase: layer === "" };
+  }
+  function compareTranslationLayers(left, right) {
+    if (left.isBase !== right.isBase) return left.isBase ? -1 : 1;
+    return compareNatural(left.name, right.name);
+  }
+  function normalizeTranslationFile(file) {
+    return typeof file === "string" ? { file: file, source: file } : file;
+  }
+  function isMergeableObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value);
+  }
+  function mergeTranslationObject(target, source) {
+    Object.keys(source || {}).forEach(function (key) {
+      const value = source[key];
+      if (isMergeableObject(value) && isMergeableObject(target[key])) mergeTranslationObject(target[key], value);
+      else if (isMergeableObject(value)) target[key] = mergeTranslationObject({}, value);
+      else target[key] = value;
+    });
+    return target;
+  }
   async function readGameResourceText(storage, path) {
     const text = await storage.readFile("game-resources/" + path, { encoding: "utf-8" });
     if (text == null) throw new Error("无法读取语言包：" + path);
@@ -211,7 +255,7 @@
     const rootEntries = await storage.readdir(virtualRoot);
     if (!Array.isArray(rootEntries)) throw new Error("无法读取语言包目录：" + root);
     const result = { root: root, jsonFiles: [], ksFiles: [] };
-    async function collect(directory, logicalPrefix, extension, output) {
+    async function collect(directory, logicalPrefix, extension, output, layer) {
       const names = await storage.readdir("game-resources/" + directory);
       if (!Array.isArray(names)) throw new Error("无法读取语言包目录：" + directory);
       for (const name of names.filter(isSafeDirectoryEntry).sort(compareNatural)) {
@@ -220,44 +264,56 @@
         const stat = await storage.stat("game-resources/" + relative);
         if (!stat) throw new Error("无法读取语言包路径状态：" + relative);
         if (stat.isDirectory()) {
-          await collect(relative, logical, extension, output);
+          await collect(relative, logical, extension, output, layer);
         } else if (stat.isFile() && name.toLowerCase().endsWith(extension)) {
-          output.push(logical);
+          output.push({
+            file: layer.kind === "json" && logical === "charas.json" ? "charas.json" : layer.kind + "/" + logical,
+            source: layer.name + "/" + logical
+          });
         }
       }
     }
-    for (const name of rootEntries.filter(isSafeDirectoryEntry).sort(compareNatural)) {
-      const path = kag.joinTranslatePath(root, name);
+    const layers = rootEntries.filter(isSafeDirectoryEntry).map(getTranslationLayerDirectory).filter(Boolean).sort(compareTranslationLayers);
+    for (const layer of layers) {
+      const path = kag.joinTranslatePath(root, layer.name);
       const stat = await storage.stat("game-resources/" + path);
       if (!stat) throw new Error("无法读取语言包路径状态：" + path);
-      if (name === "charas.json" && stat.isFile()) result.jsonFiles.push("charas.json");
-      else if (name === "json" && stat.isDirectory()) await collect(path, "json", ".json", result.jsonFiles);
-      else if (name === "ks" && stat.isDirectory()) await collect(path, "ks", ".ks", result.ksFiles);
+      if (!stat.isDirectory()) throw new Error("语言包层不是目录：" + path);
+      await collect(path, "", layer.kind === "json" ? ".json" : ".ks", layer.kind === "json" ? result.jsonFiles : result.ksFiles, layer);
     }
+    const charasPath = kag.joinTranslatePath(root, "charas.json");
+    const charasStat = await storage.stat("game-resources/" + charasPath);
+    if (charasStat && charasStat.isFile()) result.jsonFiles.unshift({ file: "charas.json", source: "charas.json" });
     return result;
   }
   async function buildTranslatePack(language, jsonFiles, ksFiles, readJsonFile, readTextFile) {
     const loaded = await Promise.all(jsonFiles.map(async function (file) {
-      return { file: file, data: await readJsonFile(file) };
+      const entry = normalizeTranslationFile(file);
+      return { file: entry.file, data: await readJsonFile(entry.source) };
     }));
     const loadedDialogues = await Promise.all(ksFiles.map(async function (file) {
-      return { file: file, text: await readTextFile(file) };
+      const entry = normalizeTranslationFile(file);
+      return { file: entry.file, text: await readTextFile(entry.source) };
     }));
     const sceneCache = {};
     const dialogueCache = {};
     let charas = {};
     loaded.forEach(function (item) {
       if (item.file === "charas.json") {
-        if (item.data && typeof item.data === "object" && !Array.isArray(item.data)) charas = item.data;
+        if (isMergeableObject(item.data)) mergeTranslationObject(charas, item.data);
         return;
       }
       if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) throw new Error("剧本语言包根节点不是对象：" + item.file);
       const scenario = item.file.replace(/^json\//i, "").replace(/\.json$/i, ".ks");
-      sceneCache[language + "::" + scenario] = item.data;
+      const key = language + "::" + scenario;
+      if (!sceneCache[key]) sceneCache[key] = {};
+      mergeTranslationObject(sceneCache[key], item.data);
     });
     loadedDialogues.forEach(function (item) {
       const scenario = item.file.replace(/^ks\//i, "");
-      dialogueCache[language + "::" + scenario] = item.text;
+      const key = language + "::" + scenario;
+      if (!dialogueCache[key]) dialogueCache[key] = [];
+      dialogueCache[key].push(item.text);
     });
     return { scenes: sceneCache, dialogues: dialogueCache, charas: charas };
   }
