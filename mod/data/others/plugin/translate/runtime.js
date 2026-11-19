@@ -180,9 +180,101 @@
     try { return JSON.parse(text); }
     catch (error) { throw new Error("语言包 JSON 无法解析：" + path + "（" + error.message + "）"); }
   }
+  function getModLoaderStorage() {
+    const storage = window.modloader;
+    if (!storage || typeof storage.readdir !== "function" || typeof storage.stat !== "function" || typeof storage.readFile !== "function") return null;
+    return storage;
+  }
+  function compareNatural(left, right) {
+    return String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
+  }
+  function isSafeDirectoryEntry(name) {
+    return typeof name === "string" && name !== "" && name !== "." && name !== ".." && !/[\\/\0]/.test(name);
+  }
+  async function readGameResourceText(storage, path) {
+    const text = await storage.readFile("game-resources/" + path, { encoding: "utf-8" });
+    if (text == null) throw new Error("无法读取语言包：" + path);
+    return String(text);
+  }
+  async function readGameResourceJson(storage, path) {
+    const text = await readGameResourceText(storage, path);
+    try { return JSON.parse(text); }
+    catch (error) { throw new Error("语言包 JSON 无法解析：" + path + "（" + error.message + "）"); }
+  }
+  async function scanLanguageFiles(storage, language) {
+    const root = kag.joinTranslatePath("data", "others", "lang", language);
+    const virtualRoot = "game-resources/" + root;
+    const rootStat = await storage.stat(virtualRoot);
+    // 仅在语言目录确实不存在时回退旧式 <lang>.json；已存在但不可读应明确报错。
+    if (!rootStat) return null;
+    if (!rootStat.isDirectory()) throw new Error("语言包路径不是目录：" + root);
+    const rootEntries = await storage.readdir(virtualRoot);
+    if (!Array.isArray(rootEntries)) throw new Error("无法读取语言包目录：" + root);
+    const result = { root: root, jsonFiles: [], ksFiles: [] };
+    async function collect(directory, logicalPrefix, extension, output) {
+      const names = await storage.readdir("game-resources/" + directory);
+      if (!Array.isArray(names)) throw new Error("无法读取语言包目录：" + directory);
+      for (const name of names.filter(isSafeDirectoryEntry).sort(compareNatural)) {
+        const relative = kag.joinTranslatePath(directory, name);
+        const logical = logicalPrefix ? logicalPrefix + "/" + name : name;
+        const stat = await storage.stat("game-resources/" + relative);
+        if (!stat) throw new Error("无法读取语言包路径状态：" + relative);
+        if (stat.isDirectory()) {
+          await collect(relative, logical, extension, output);
+        } else if (stat.isFile() && name.toLowerCase().endsWith(extension)) {
+          output.push(logical);
+        }
+      }
+    }
+    for (const name of rootEntries.filter(isSafeDirectoryEntry).sort(compareNatural)) {
+      const path = kag.joinTranslatePath(root, name);
+      const stat = await storage.stat("game-resources/" + path);
+      if (!stat) throw new Error("无法读取语言包路径状态：" + path);
+      if (name === "charas.json" && stat.isFile()) result.jsonFiles.push("charas.json");
+      else if (name === "json" && stat.isDirectory()) await collect(path, "json", ".json", result.jsonFiles);
+      else if (name === "ks" && stat.isDirectory()) await collect(path, "ks", ".ks", result.ksFiles);
+    }
+    return result;
+  }
+  async function buildTranslatePack(language, jsonFiles, ksFiles, readJsonFile, readTextFile) {
+    const loaded = await Promise.all(jsonFiles.map(async function (file) {
+      return { file: file, data: await readJsonFile(file) };
+    }));
+    const loadedDialogues = await Promise.all(ksFiles.map(async function (file) {
+      return { file: file, text: await readTextFile(file) };
+    }));
+    const sceneCache = {};
+    const dialogueCache = {};
+    let charas = {};
+    loaded.forEach(function (item) {
+      if (item.file === "charas.json") {
+        if (item.data && typeof item.data === "object" && !Array.isArray(item.data)) charas = item.data;
+        return;
+      }
+      if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) throw new Error("剧本语言包根节点不是对象：" + item.file);
+      const scenario = item.file.replace(/^json\//i, "").replace(/\.json$/i, ".ks");
+      sceneCache[language + "::" + scenario] = item.data;
+    });
+    loadedDialogues.forEach(function (item) {
+      const scenario = item.file.replace(/^ks\//i, "");
+      dialogueCache[language + "::" + scenario] = item.text;
+    });
+    return { scenes: sceneCache, dialogues: dialogueCache, charas: charas };
+  }
   kag.loadTranslateManifest = async function (language) {
     const root = kag.joinTranslatePath("data", "others", "lang", language);
     const manifestPath = kag.joinTranslatePath("data", "others", "lang", language + ".json");
+    const storage = getModLoaderStorage();
+    if (storage) {
+      const scanned = await scanLanguageFiles(storage, language);
+      if (scanned) {
+        return buildTranslatePack(language, scanned.jsonFiles, scanned.ksFiles, function (file) {
+          return readGameResourceJson(storage, kag.joinTranslatePath(root, file));
+        }, function (file) {
+          return readGameResourceText(storage, kag.joinTranslatePath(root, file));
+        });
+      }
+    }
     let manifest;
     try {
       manifest = await loadJson(manifestPath);
@@ -202,29 +294,11 @@
       return typeof file === "string" && file.indexOf("..") < 0 && /^ks\/[\-_a-zA-Z0-9./]+\.ks$/i.test(file);
     });
     if (ksFiles.length !== manifest.ksFiles.length) throw new Error("语言包 KS 列表包含无效路径");
-    const loaded = await Promise.all(jsonFiles.map(async function (file) {
-      return { file: file, data: await loadJson(kag.joinTranslatePath(root, file)) };
-    }));
-    const loadedDialogues = await Promise.all(ksFiles.map(async function (file) {
-      return { file: file, text: await loadText(kag.joinTranslatePath(root, file)) };
-    }));
-    const sceneCache = {};
-    const dialogueCache = {};
-    let charas = {};
-    loaded.forEach(function (item) {
-      if (item.file === "charas.json") {
-        if (item.data && typeof item.data === "object" && !Array.isArray(item.data)) charas = item.data;
-        return;
-      }
-      if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) throw new Error("剧本语言包根节点不是对象：" + item.file);
-      const scenario = item.file.replace(/^json\//i, "").replace(/\.json$/i, ".ks");
-      sceneCache[language + "::" + scenario] = item.data;
+    return buildTranslatePack(language, jsonFiles, ksFiles, function (file) {
+      return loadJson(kag.joinTranslatePath(root, file));
+    }, function (file) {
+      return loadText(kag.joinTranslatePath(root, file));
     });
-    loadedDialogues.forEach(function (item) {
-      const scenario = item.file.replace(/^ks\//i, "");
-      dialogueCache[language + "::" + scenario] = item.text;
-    });
-    return { scenes: sceneCache, dialogues: dialogueCache, charas: charas };
   };
   // 角色显示名兼容层：
   // 不修改音效插件，只识别其对 kag.tag.chara_ptext.start 的包装。
