@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -17,13 +21,27 @@ jobs:
       - name: Get version and check tag
         id: ver
         run: |
-          NEW=$(jq -r '.version' mod/modloader.mod.json)
-          
-          # 检查 Tag 是否已被占用
-          if git ls-remote --tags origin | grep -q "refs/tags/$NEW$"; then
-            echo "Tag $NEW 已存在，跳过发布。"
-            exit 0
-          fi
+          NEW=$(jq -er '.version | strings | select(length > 0)' mod/modloader.mod.json)
+          git check-ref-format --allow-onelevel "$NEW"
+
+          # --exit-code 返回 0 表示精确匹配到 tag，2 表示 tag 不存在。
+          set +e
+          git ls-remote --exit-code --refs origin "refs/tags/$NEW" > /dev/null
+          TAG_STATUS=$?
+          set -e
+
+          case "$TAG_STATUS" in
+            0)
+              echo "Tag $NEW 已存在，跳过发布。"
+              exit 0
+              ;;
+            2)
+              ;;
+            *)
+              echo "::error::无法检查远端 Tag $NEW"
+              exit "$TAG_STATUS"
+              ;;
+          esac
           
           echo "ver=$NEW" >> $GITHUB_OUTPUT
 

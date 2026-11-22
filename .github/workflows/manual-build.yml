@@ -3,10 +3,15 @@ name: Manual Build
 on:
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: '请输入版本号 (例如: 1.0.0)'
-        required: true
-        type: string
+      overwrite_existing_tag:
+        description: '覆盖与 modloader.mod.json 版本同名的现有 tag 和 Release'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -14,18 +19,47 @@ permissions:
 jobs:
   validate-and-check:
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.version.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v7
-      - name: Verify tag not exists
+        with:
+          fetch-depth: 0
+      - name: Read version and verify tag
+        id: version
+        env:
+          OVERWRITE_EXISTING_TAG: ${{ inputs.overwrite_existing_tag }}
         run: |
-          if git ls-remote --tags origin | grep -q "refs/tags/${{ github.event.inputs.tag_name }}$"; then
-            echo "::error::Tag ${{ github.event.inputs.tag_name }} 已存在"
-            exit 1
-          fi
-          echo "Tag 可用"
+          TAG_NAME=$(jq -er '.version | strings | select(length > 0)' mod/modloader.mod.json)
+          git check-ref-format --allow-onelevel "$TAG_NAME"
+
+          set +e
+          git ls-remote --exit-code --refs origin "refs/tags/$TAG_NAME" > /dev/null
+          TAG_STATUS=$?
+          set -e
+
+          case "$TAG_STATUS" in
+            0)
+              if [ "$OVERWRITE_EXISTING_TAG" != "true" ]; then
+                echo "::error::Tag $TAG_NAME 已存在。如需覆盖，请启用 overwrite_existing_tag。"
+                exit 1
+              fi
+              echo "Tag $TAG_NAME 已存在，将覆盖其指向的提交和对应 Release。"
+              ;;
+            2)
+              echo "Tag $TAG_NAME 可用"
+              ;;
+            *)
+              echo "::error::无法检查远端 Tag $TAG_NAME"
+              exit "$TAG_STATUS"
+              ;;
+          esac
+
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
   call-build:
     needs: validate-and-check
     uses: ./.github/workflows/build-logic.yml
     with:
-      tag_name: ${{ github.event.inputs.tag_name }}
+      tag_name: ${{ needs.validate-and-check.outputs.tag_name }}
+      overwrite_existing_tag: ${{ inputs.overwrite_existing_tag }}

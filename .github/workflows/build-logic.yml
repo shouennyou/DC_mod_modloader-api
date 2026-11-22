@@ -6,6 +6,10 @@ on:
       tag_name:
         required: true
         type: string
+      overwrite_existing_tag:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -18,6 +22,30 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Overwrite existing tag
+        if: inputs.overwrite_existing_tag
+        env:
+          TAG_NAME: ${{ inputs.tag_name }}
+        run: |
+          set +e
+          git ls-remote --exit-code --refs origin "refs/tags/$TAG_NAME" > /dev/null
+          TAG_STATUS=$?
+          set -e
+
+          case "$TAG_STATUS" in
+            0)
+              git tag --force "$TAG_NAME" "$GITHUB_SHA"
+              git push --force origin "refs/tags/$TAG_NAME"
+              ;;
+            2)
+              echo "Tag $TAG_NAME 不存在，将由 Release 创建。"
+              ;;
+            *)
+              echo "::error::无法检查远端 Tag $TAG_NAME"
+              exit "$TAG_STATUS"
+              ;;
+          esac
+
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
@@ -28,7 +56,7 @@ jobs:
 
       - name: Build asar
         run: |
-          ID=$(jq -r '.id' mod/modloader.mod.json)
+          ID=$(jq -er '.id | strings | select(length > 0)' mod/modloader.mod.json)
           asar pack mod "$ID.asar"
           echo "ID=$ID" >> "$GITHUB_ENV"
 
@@ -40,6 +68,15 @@ jobs:
           fi
           echo "构建成功：$ID.asar"
 
+      - name: Calculate ASAR SHA-256
+        run: |
+          SHA256=$(sha256sum "$ID.asar" | awk '{print $1}')
+          if ! [[ "$SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::无法计算有效的 SHA-256"
+            exit 1
+          fi
+          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
+
       - name: Generate Changelog
         env:
           TAG_NAME: ${{ inputs.tag_name }}
@@ -47,11 +84,9 @@ jobs:
           # 使用当前工作流所在的 Commit
           CURRENT_COMMIT=$(git rev-parse HEAD)
 
-          # 获取当前 Commit 之前最近的一个 Tag
-          PREVIOUS_TAG=$(git tag \
-            --sort=-version:refname \
-            --merged "$CURRENT_COMMIT" \
-            | head -n 1 || true)
+          # 取提交图上距离当前 Commit 最近的 tag，而非版本号最高的 tag。
+          # 排除当前发布 tag，以支持手动覆盖既有 Release。
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 --exclude="$TAG_NAME" "$CURRENT_COMMIT" 2>/dev/null || true)
 
           echo "当前版本：$TAG_NAME"
           echo "当前 Commit：$CURRENT_COMMIT"
@@ -89,9 +124,17 @@ jobs:
           UPDATE_JSON="$RUNNER_TEMP/update.json"
 
           jq --rawfile changelog "$CHANGELOG_FILE" \
+             --arg id "$ID" \
              --arg asarUrl "https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/$ID.asar" \
-             'del(.update, .injections) + {asarUrl: $asarUrl, changelog: $changelog}' \
+             --arg sha256 "$SHA256" \
+             'del(.update, .injections) + {id: $id, asarUrl: $asarUrl, sha256: $sha256, changelog: $changelog}' \
              mod/modloader.mod.json > "$UPDATE_JSON"
+
+          jq -e --arg id "$ID" '
+            .id == $id
+            and ((.sha256 | type) == "string")
+            and (.sha256 | test("^[0-9a-f]{64}$"))
+          ' "$UPDATE_JSON" > /dev/null
 
           echo "UPDATE_JSON=$UPDATE_JSON" >> "$GITHUB_ENV"
 
