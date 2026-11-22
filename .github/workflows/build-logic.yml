@@ -49,10 +49,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
 
       - name: Install asar
-        run: npm install -g asar
+        run: npm install -g @electron/asar
 
       - name: Build asar
         run: |
@@ -141,7 +141,7 @@ jobs:
           echo "update.json 生成成功"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag_name }}
           target_commitish: ${{ github.sha }}
